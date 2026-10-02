@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>Phase 1 Tracker</title>
+  <meta name="description" content="Submission tracker for the Limitless Crypto Up/Down Markets Competition, W40–W41.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Ticker, echoes the live-trades strip on limitless.exchange -->
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker__track" id="ticker"></div>
+  </div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__mark" aria-hidden="true">P1</span>
+      <span class="brand__name">Phase 1</span>
+    </div>
+    <div class="topbar__actions">
+      <span class="live-dot" id="campaignState"><i></i>Live</span>
+      <button class="btn btn--lime" type="button" data-open="logDialog">+ Log post</button>
+    </div>
+  </header>
+
+  <div class="rankbar">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 18h18M4 7l4 4 4-6 4 6 4-4-2 11H6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+    <span>Standings update in <b class="mono" id="nextUpdate">--:--:--</b></span>
+  </div>
+
+  <main class="wrap">
+    <section class="hero">
+      <p class="eyebrow">Markets competition · Crypto Up Down</p>
+      <h1>Finish top 8.<br>Bank the airdrop.</h1>
+      <div class="hero__stats">
+        <div class="stat">
+          <span class="stat__label">Campaign ends in</span>
+          <span class="stat__value mono" id="campaignEnd">--</span>
+        </div>
+        <div class="stat">
+          <span class="stat__label">Verified</span>
+          <span class="stat__value"><span id="totVerified">0</span><small> / 20</small></span>
+        </div>
+        <div class="stat">
+          <span class="stat__label">Latest rank</span>
+          <span class="stat__value" id="latestRank">—</span>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="weeksTitle">
+      <div class="section-head">
+        <h2 id="weeksTitle">Weeks</h2>
+        <span class="hint">4 qualifying to count · 10 max submitted</span>
+      </div>
+      <div class="weeks" id="weeks"></div>
+    </section>
+
+    <section aria-labelledby="coverageTitle">
+      <div class="section-head">
+        <h2 id="coverageTitle">Market coverage</h2>
+        <span class="hint">Spread your posts. Grey = not a campaign market.</span>
+      </div>
+      <div class="card">
+        <div class="coverage" id="coverage" role="table" aria-label="Posts per market"></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="logTitle">
+      <div class="section-head">
+        <h2 id="logTitle">Submission log</h2>
+        <div class="seg" role="tablist" id="filters">
+          <button role="tab" class="is-on" data-filter="all">All</button>
+          <button role="tab" data-filter="W40">W40</button>
+          <button role="tab" data-filter="W41">W41</button>
+          <button role="tab" data-filter="open">Needs action</button>
+        </div>
+      </div>
+      <div id="log" class="log"></div>
+    </section>
+
+    <section aria-labelledby="draftsTitle">
+      <div class="section-head">
+        <h2 id="draftsTitle">Draft queue</h2>
+        <span class="hint">Fill the [brackets], paste your market link, post, then log it.</span>
+      </div>
+      <div class="drafts" id="drafts"></div>
+    </section>
+
+    <section aria-labelledby="standTitle">
+      <div class="section-head">
+        <h2 id="standTitle">Standings snapshots</h2>
+      </div>
+      <div class="card">
+        <form class="standings-form" id="standForm">
+          <label>Rank <input type="number" min="1" name="rank" required inputmode="numeric"></label>
+          <label>of <input type="number" min="1" name="total" value="18" required inputmode="numeric"></label>
+          <button class="btn btn--ghost" type="submit">Save snapshot</button>
+        </form>
+        <ol class="standings" id="standings"></ol>
+      </div>
+    </section>
+
+    <section aria-labelledby="dataTitle">
+      <div class="section-head"><h2 id="dataTitle">Your data</h2></div>
+      <div class="card data-card">
+        <p class="muted">Everything is saved in this browser only. Export a backup before switching phones or clearing your browser.</p>
+        <div class="row">
+          <button class="btn btn--ghost" type="button" id="exportJson">Export JSON</button>
+          <button class="btn btn--ghost" type="button" id="exportCsv">Export CSV</button>
+          <label class="btn btn--ghost">Import JSON<input type="file" accept="application/json" id="importJson" hidden></label>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      Unofficial personal tracker. Not affiliated with Limitless. Rules mirrored from the ambassador Mini App, so check there if anything changes.
+    </footer>
+  </main>
+
+  <!-- Log / edit dialog -->
+  <dialog id="logDialog" class="sheet">
+    <form method="dialog" id="logForm" novalidate>
+      <div class="sheet__head">
+        <h3 id="formTitle">Log a post</h3>
+        <button class="icon-btn" value="cancel" aria-label="Close">✕</button>
+      </div>
+      <input type="hidden" name="id">
+
+      <label class="field">
+        <span>Post URL</span>
+        <input name="postUrl" type="url" placeholder="https://x.com/you/status/…" autocomplete="off">
+      </label>
+      <label class="field">
+        <span>Market link (inside the post)</span>
+        <input name="marketUrl" type="url" placeholder="https://limitless.exchange/markets/…" autocomplete="off">
+      </label>
+
+      <div class="grid2">
+        <label class="field">
+          <span>Asset</span>
+          <select name="asset">
+            <option>BTC</option><option>ETH</option><option>SOL</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Timeframe</span>
+          <select name="timeframe">
+            <option value="5m">5-minute</option>
+            <option value="15m">15-minute</option>
+            <option value="1h">Hourly</option>
+            <option value="1d">Daily</option>
+            <option value="1w">Weekly</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="grid2">
+        <label class="field">
+          <span>Post type</span>
+          <select name="kind">
+            <option value="original">Original post</option>
+            <option value="quote">Quote post</option>
+            <option value="reply">Reply</option>
+            <option value="repost">Repost</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Posted at (your time)</span>
+          <input name="postedAt" type="datetime-local">
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Post text (optional, lets the checker scan it)</span>
+        <textarea name="text" rows="5" placeholder="Paste the post text…"></textarea>
+      </label>
+
+      <div class="grid2">
+        <label class="field">
+          <span>Status</span>
+          <select name="status">
+            <option value="posted">Posted, not submitted</option>
+            <option value="submitted">Submitted in Mini App</option>
+            <option value="verified">Verified</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Views</span>
+          <input name="views" type="number" min="0" inputmode="numeric">
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Notes</span>
+        <input name="notes" type="text" placeholder="e.g. called Up, settled Up ✅">
+      </label>
+
+      <div class="preflight" id="preflight" aria-live="polite"></div>
+
+      <div class="sheet__foot">
+        <button class="btn btn--danger" type="button" id="deleteEntry" hidden>Delete</button>
+        <button class="btn btn--lime" type="submit" value="save" id="saveEntry">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
