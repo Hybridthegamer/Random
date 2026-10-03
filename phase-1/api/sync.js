@@ -8,9 +8,11 @@ import { blankDoc, mergeDocs, normaliseDoc } from "../merge.js";
 const KEY = "phase1:doc";
 const MAX_BYTES = 1_000_000;
 
-// The Vercel Marketplace Upstash integration injects KV_REST_API_*; a direct Upstash setup uses UPSTASH_REDIS_REST_*.
-const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+// The Vercel Marketplace Upstash integration injects <PREFIX>_REST_API_* (prefix "KV" or "STORAGE" by default);
+// a direct Upstash setup uses UPSTASH_REDIS_REST_*.
+const env = process.env;
+const REDIS_URL = env.KV_REST_API_URL || env.STORAGE_REST_API_URL || env.UPSTASH_REDIS_REST_URL;
+const REDIS_TOKEN = env.KV_REST_API_TOKEN || env.STORAGE_REST_API_TOKEN || env.UPSTASH_REDIS_REST_TOKEN;
 
 async function redis(command) {
   const res = await fetch(REDIS_URL, {

@@ -32,7 +32,7 @@ Logs are stored in **Upstash Redis**, which is the source of truth, through a sm
 
 ### One-time setup on Vercel
 
-1. In the `phase-1` project, go to **Storage → Create Database → Upstash (Redis)**. Pick the free plan and connect it to the project. This adds the `KV_REST_API_URL` and `KV_REST_API_TOKEN` environment variables automatically.
+1. In the `phase-1` project, go to **Storage → Create Database → Upstash (Redis)**. Pick the free plan and connect it to the project. Set **Custom Prefix** to `KV`, which adds the `KV_REST_API_URL` and `KV_REST_API_TOKEN` environment variables. The default `STORAGE` prefix also works.
 2. Go to **Settings → Environment Variables** and add `SYNC_PASSPHRASE` with a long passphrase of your choice. Make sure it applies to Production.
 3. Redeploy the project.
 4. On each device, open the site, go to **Your data → Sync across devices**, enter the passphrase and tap **Connect**.
