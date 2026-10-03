@@ -1,3 +1,5 @@
+import { blankDoc, mergeDocs, normaliseDoc } from "./merge.js";
+
 (() => {
   "use strict";
 
@@ -115,30 +117,87 @@ What's your call for this hour? 👇
   ];
 
   // ---- Storage --------------------------------------------------------------
+  // localStorage is the offline cache; /api/sync (Upstash Redis) is the source of truth.
   const KEY = "phase1-tracker-v1";
-  const blank = () => ({ version: 1, entries: [], standings: [], usedDrafts: [] });
+  const SYNC_KEY = "phase1-sync-key";
   let state = load();
 
   function load() {
     try {
       const raw = localStorage.getItem(KEY);
-      if (!raw) return blank();
-      return normalise(JSON.parse(raw));
-    } catch { return blank(); }
+      return raw ? normaliseDoc(JSON.parse(raw)) : blankDoc();
+    } catch { return blankDoc(); }
   }
-  function normalise(d) {
-    const b = blank();
-    if (!d || typeof d !== "object") return b;
-    return {
-      version: 1,
-      entries: Array.isArray(d.entries) ? d.entries.filter(e => e && e.id) : [],
-      standings: Array.isArray(d.standings) ? d.standings.filter(s => s && s.at) : [],
-      usedDrafts: Array.isArray(d.usedDrafts) ? d.usedDrafts : [],
-    };
-  }
-  function save() {
+  function saveLocal() {
     try { localStorage.setItem(KEY, JSON.stringify(state)); }
     catch { toast("Couldn't save in this browser. Export a backup!"); }
+  }
+  function save() {
+    saveLocal();
+    scheduleSync();
+  }
+
+  // Tombstoned (deleted) rows stay in state so deletes sync; views read these.
+  const entries = () => state.entries.filter(e => !e.deleted);
+  const standings = () => state.standings.filter(s => !s.deleted);
+  const touch = o => { o.updatedAt = Date.now(); return o; };
+
+  // ---- Sync -----------------------------------------------------------------
+  let syncKey = (() => { try { return localStorage.getItem(SYNC_KEY) || ""; } catch { return ""; } })();
+  let syncTimer = null, syncing = null, syncAgain = false;
+
+  function setSyncStatus(kind, label) {
+    const el = $("#syncState");
+    el.className = "sync-pill sync-pill--" + kind;
+    el.textContent = label;
+    $("#syncDetail").textContent = {
+      off: "Not connected. Logs stay on this device only.",
+      ok: "Connected. Logs sync across your devices.",
+      busy: "Syncing…",
+      err: "Can't reach the sync server. Changes are kept here and will sync when it's back.",
+      locked: "Wrong passphrase. Enter it again to reconnect.",
+      setup: "Sync isn't configured on the server yet (see README).",
+    }[kind] || "";
+    $("#syncForm").hidden = kind === "ok" || kind === "busy" || kind === "err";
+    $("#syncDisconnect").hidden = !syncKey;
+  }
+
+  function scheduleSync(delay = 600) {
+    if (!syncKey) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(sync, delay);
+  }
+
+  // Push local state, get the merged doc back, adopt it. Runs one at a time.
+  async function sync() {
+    if (!syncKey) { setSyncStatus("off", "Local only"); return false; }
+    if (syncing) { syncAgain = true; return syncing; }
+    setSyncStatus("busy", "Syncing");
+    syncing = (async () => {
+      try {
+        const res = await fetch("api/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-sync-key": syncKey },
+          body: JSON.stringify(state),
+        });
+        if (res.status === 401) { setSyncStatus("locked", "Locked"); return false; }
+        if (res.status === 503) { setSyncStatus("setup", "Not set up"); return false; }
+        if (!res.ok) throw new Error(res.status);
+        // Merge again locally so edits made while the request was in flight survive.
+        state = mergeDocs(state, await res.json());
+        saveLocal();
+        render();
+        setSyncStatus("ok", "Synced");
+        return true;
+      } catch {
+        setSyncStatus("err", "Offline");
+        return false;
+      } finally {
+        syncing = null;
+        if (syncAgain) { syncAgain = false; scheduleSync(0); }
+      }
+    })();
+    return syncing;
   }
 
   // ---- Helpers --------------------------------------------------------------
@@ -181,7 +240,7 @@ What's your call for this hour? 👇
     const lower = text.toLowerCase();
 
     out.push({ ok: /^https?:\/\/(www\.|mobile\.)?(x|twitter)\.com\/[A-Za-z0-9_]{1,15}\/status\/\d+/.test(e.postUrl || ""), label: "Valid X post URL" });
-    const dup = state.entries.some(o => o.id !== ignoreId && o.postUrl && normUrl(o.postUrl) === normUrl(e.postUrl));
+    const dup = entries().some(o => o.id !== ignoreId && o.postUrl && normUrl(o.postUrl) === normUrl(e.postUrl));
     if (e.postUrl && dup) out.push({ ok: false, label: "Already logged" });
 
     out.push({ ok: e.kind === "original" || e.kind === "quote", label: "Original or quote post (no replies, no reposts)" });
@@ -209,7 +268,7 @@ What's your call for this hour? 👇
 
     const wk = weekOf(t);
     if (wk && COUNTED.has(e.status)) {
-      const n = state.entries.filter(o => o.id !== ignoreId && COUNTED.has(o.status) && entryWeek(o) === wk).length;
+      const n = entries().filter(o => o.id !== ignoreId && COUNTED.has(o.status) && entryWeek(o) === wk).length;
       out.push({ ok: n < MAX_PER_WEEK, label: `${wk}: ${n + 1} of ${MAX_PER_WEEK} weekly submissions` });
     }
     return out;
@@ -226,12 +285,12 @@ What's your call for this hour? 👇
     renderDrafts();
     renderStandings();
     renderTicker();
-    const verified = state.entries.filter(e => e.status === "verified" && PHASE_WEEKS.includes(entryWeek(e))).length;
+    const verified = entries().filter(e => e.status === "verified" && PHASE_WEEKS.includes(entryWeek(e))).length;
     $("#totVerified").textContent = verified;
   }
 
   function weekStats(id) {
-    const es = state.entries.filter(e => entryWeek(e) === id);
+    const es = entries().filter(e => entryWeek(e) === id);
     return {
       posted: es.length,
       submitted: es.filter(e => COUNTED.has(e.status)).length,
@@ -281,7 +340,7 @@ What's your call for this hour? 👇
 
   function renderCoverage() {
     const counts = {};
-    state.entries.filter(e => e.status !== "rejected").forEach(e => { const k = e.asset + e.timeframe; counts[k] = (counts[k] || 0) + 1; });
+    entries().filter(e => e.status !== "rejected").forEach(e => { const k = e.asset + e.timeframe; counts[k] = (counts[k] || 0) + 1; });
     let html = `<div></div>` + TIMEFRAMES.map(t => `<div class="h" role="columnheader">${t.label}</div>`).join("");
     ASSETS.forEach(a => {
       html += `<div class="a" role="rowheader">${a}</div>`;
@@ -295,11 +354,11 @@ What's your call for this hour? 👇
   }
 
   function renderLog() {
-    let es = [...state.entries].sort((a, b) => entryTime(b) - entryTime(a));
+    let es = [...entries()].sort((a, b) => entryTime(b) - entryTime(a));
     if (filter === "W40" || filter === "W41") es = es.filter(e => entryWeek(e) === filter);
     if (filter === "open") es = es.filter(e => e.status === "posted" || e.status === "submitted" || e.status === "rejected");
     if (!es.length) {
-      $("#log").innerHTML = `<div class="empty">${state.entries.length ? "Nothing here for this filter." : "No posts logged yet. Post your first draft below, then tap <b>+ Log post</b>."}</div>`;
+      $("#log").innerHTML = `<div class="empty">${entries().length ? "Nothing here for this filter." : "No posts logged yet. Post your first draft below, then tap <b>+ Log post</b>."}</div>`;
       return;
     }
     $("#log").innerHTML = es.map(e => {
@@ -350,7 +409,7 @@ What's your call for this hour? 👇
   }
 
   function renderStandings() {
-    const list = [...state.standings].sort((a, b) => b.at - a.at);
+    const list = [...standings()].sort((a, b) => b.at - a.at);
     $("#standings").innerHTML = list.map(s => `
       <li class="${s.rank <= TOP_N ? "in" : ""}">
         <span>${fmtDate(s.at)}</span>
@@ -465,9 +524,9 @@ What's your call for this hour? 👇
     ev.preventDefault();
     const e = readForm();
     if (!e.postUrl) { toast("Add the post URL first"); form.elements.postUrl.focus(); return; }
-    const existing = state.entries.find(x => x.id === e.id);
+    const existing = entries().find(x => x.id === e.id);
     const wasCounted = existing && COUNTED.has(existing.status);
-    const entry = { ...(existing || {}), ...e, id: e.id || uid() };
+    const entry = touch({ ...(existing || {}), ...e, id: e.id || uid() });
     if (COUNTED.has(entry.status) && !wasCounted) entry.submittedAt = Date.now();
     if (!COUNTED.has(entry.status)) delete entry.submittedAt;
     if (existing) Object.assign(existing, entry); else state.entries.push(entry);
@@ -481,7 +540,7 @@ What's your call for this hour? 👇
   $("#deleteEntry").addEventListener("click", () => {
     const id = form.elements.id.value;
     if (!id || !confirm("Delete this entry?")) return;
-    state.entries = state.entries.filter(e => e.id !== id);
+    state.entries = state.entries.map(e => e.id === id ? touch({ id, deleted: true }) : e);
     save(); render(); dlg.close(); toast("Deleted");
   });
 
@@ -490,15 +549,17 @@ What's your call for this hour? 👇
     const t = ev.target.closest("button, [data-open]");
     if (!t) return;
     if (t.dataset.open === "logDialog") return openForm(null);
-    if (t.dataset.edit) return openForm(state.entries.find(e => e.id === t.dataset.edit));
+    if (t.dataset.edit) return openForm(entries().find(e => e.id === t.dataset.edit));
     if (t.dataset.cycle) {
-      const e = state.entries.find(x => x.id === t.dataset.cycle);
+      const e = entries().find(x => x.id === t.dataset.cycle);
       if (!e) return;
       const next = STATUS_ORDER[(STATUS_ORDER.indexOf(e.status) + 1) % STATUS_ORDER.length];
       if (COUNTED.has(next) && !COUNTED.has(e.status)) e.submittedAt = Date.now();
       if (!COUNTED.has(next)) delete e.submittedAt;
       e.status = next;
+      touch(e);
       save(); render();
+      return;
       return;
     }
     if (t.dataset.copy) {
@@ -513,7 +574,7 @@ What's your call for this hour? 👇
       return;
     }
     if (t.dataset.delstand) {
-      state.standings = state.standings.filter(s => String(s.at) !== t.dataset.delstand);
+      state.standings = state.standings.map(s => String(s.at) === t.dataset.delstand ? touch({ at: s.at, deleted: true }) : s);
       save(); render();
       return;
     }
@@ -529,7 +590,7 @@ What's your call for this hour? 👇
     const f = new FormData(ev.target);
     const rank = Number(f.get("rank")), total = Number(f.get("total"));
     if (!rank || !total || rank > total) { toast("Rank must be between 1 and the total"); return; }
-    state.standings.push({ at: Date.now(), rank, total });
+    state.standings.push(touch({ at: Date.now(), rank, total }));
     save(); render(); ev.target.rank.value = "";
     toast(rank <= TOP_N ? "Inside the top 8 🔥" : `${rank - TOP_N} places to climb`);
   });
@@ -548,7 +609,7 @@ What's your call for this hour? 👇
   $("#exportCsv").addEventListener("click", () => {
     const cols = ["week", "status", "asset", "timeframe", "kind", "postedAt", "submittedAt", "postUrl", "marketUrl", "views", "notes"];
     const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const rows = state.entries.map(e => cols.map(c =>
+    const rows = entries().map(e => cols.map(c =>
       c === "week" ? q(entryWeek(e)) : (c === "postedAt" || c === "submittedAt") ? q(e[c] ? new Date(e[c]).toISOString() : "") : q(e[c])
     ).join(","));
     download(`phase-1-${stamp()}.csv`, [cols.join(","), ...rows].join("\n"), "text/csv");
@@ -557,9 +618,10 @@ What's your call for this hour? 👇
     const file = ev.target.files[0];
     if (!file) return;
     try {
-      const data = normalise(JSON.parse(await file.text()));
-      if (!confirm(`Replace current data with ${data.entries.length} entries from ${file.name}?`)) return;
-      state = data; save(); render(); toast("Imported ✓");
+      const data = normaliseDoc(JSON.parse(await file.text()));
+      const n = data.entries.filter(e => !e.deleted).length;
+      if (!confirm(`Merge ${n} entries from ${file.name} into your log?`)) return;
+      state = mergeDocs(state, data); save(); render(); toast("Imported ✓");
     } catch { toast("That file isn't a valid backup"); }
     ev.target.value = "";
   });
@@ -574,7 +636,30 @@ What's your call for this hour? 👇
     toastTimer = setTimeout(() => el.classList.remove("show"), 2400);
   }
 
+  // ---- Sync controls --------------------------------------------------------
+  $("#syncForm").addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const key = ev.target.elements.passphrase.value.trim();
+    if (!key) return;
+    syncKey = key;
+    try { localStorage.setItem(SYNC_KEY, key); } catch {}
+    ev.target.reset();
+    if (await sync()) toast("Connected. This device now syncs ✓");
+  });
+  $("#syncDisconnect").addEventListener("click", () => {
+    if (!confirm("Stop syncing on this device? Your logs stay saved here.")) return;
+    syncKey = "";
+    try { localStorage.removeItem(SYNC_KEY); } catch {}
+    setSyncStatus("off", "Local only");
+  });
+  $("#syncState").addEventListener("click", () => syncKey ? sync() : $("#syncForm").elements.passphrase.focus());
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) scheduleSync(0); });
+  window.addEventListener("online", () => scheduleSync(0));
+  setInterval(() => { if (!document.hidden) scheduleSync(0); }, 60e3);
+
   render();
+  setSyncStatus("off", "Local only");
+  scheduleSync(0);
   tick();
   setInterval(tick, 1000);
   setInterval(renderWeeks, 60e3);

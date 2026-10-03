@@ -24,6 +24,7 @@
       <span class="brand__name">Phase 1</span>
     </div>
     <div class="topbar__actions">
+      <button class="sync-pill sync-pill--off" id="syncState" type="button" title="Sync status">Local only</button>
       <span class="live-dot" id="campaignState"><i></i>Live</span>
       <button class="btn btn--lime" type="button" data-open="logDialog">+ Log post</button>
     </div>
@@ -109,8 +110,17 @@
 
     <section aria-labelledby="dataTitle">
       <div class="section-head"><h2 id="dataTitle">Your data</h2></div>
+      <div class="card data-card sync-card">
+        <h3>Sync across devices</h3>
+        <p class="muted" id="syncDetail">Not connected. Logs stay on this device only.</p>
+        <form class="row" id="syncForm" autocomplete="off">
+          <input name="passphrase" type="password" placeholder="Sync passphrase" aria-label="Sync passphrase" required>
+          <button class="btn btn--lime" type="submit">Connect</button>
+        </form>
+        <button class="btn btn--ghost btn--sm" type="button" id="syncDisconnect" hidden>Disconnect this device</button>
+      </div>
       <div class="card data-card">
-        <p class="muted">Everything is saved in this browser only. Export a backup before switching phones or clearing your browser.</p>
+        <p class="muted">Backups: export a copy any time. Importing merges the file into your log.</p>
         <div class="row">
           <button class="btn btn--ghost" type="button" id="exportJson">Export JSON</button>
           <button class="btn btn--ghost" type="button" id="exportCsv">Export CSV</button>
@@ -214,6 +224,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

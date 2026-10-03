@@ -1,0 +1,6 @@
+{
+  "name": "phase-1",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=18" }
+}

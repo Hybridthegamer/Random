@@ -215,3 +215,18 @@ input:focus, select:focus, textarea:focus { border-color: var(--text-3); outline
   .grid2 { grid-template-columns: 1fr; }
   .brand__name { font-size: 22px; }
 }
+
+/* Sync */
+.sync-pill { font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--text-2); cursor: pointer; white-space: nowrap; }
+.sync-pill::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; background: var(--text-3); vertical-align: 1px; }
+.sync-pill--ok { color: var(--text); }
+.sync-pill--ok::before { background: var(--lime); }
+.sync-pill--busy::before { background: var(--blue); }
+.sync-pill--err, .sync-pill--locked, .sync-pill--setup { color: var(--no); border-color: rgba(234,81,37,.4); }
+.sync-pill--err::before, .sync-pill--locked::before, .sync-pill--setup::before { background: var(--no); }
+.sync-card { margin-bottom: 12px; }
+.sync-card h3 { font-size: 20px; margin-bottom: 6px; }
+.sync-card form input { flex: 1 1 180px; width: auto; }
+@media (max-width: 680px) { .topbar__actions .live-dot { display: none; } }
+.brand__name, .topbar .btn { white-space: nowrap; }
+@media (max-width: 400px) { .topbar { padding: 12px; gap: 8px; } .topbar .btn { padding: 0 12px; } }

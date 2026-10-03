@@ -2,7 +2,7 @@
 
 A tracker for the Limitless **Crypto Up/Down Markets Competition**, covering weeks W40 and W41. Use it to log each campaign post, check it against the six rules before you submit, and follow weekly caps, standings and market coverage.
 
-It's a static site with plain HTML, CSS and JS. There's no build step and no backend.
+It's plain HTML, CSS and JS with no build step, plus one serverless function (`api/sync.js`) that syncs your logs across devices.
 
 ## Deploy on Vercel
 
@@ -15,16 +15,31 @@ It's a static site with plain HTML, CSS and JS. There's no build step and no bac
 ## Run locally
 
 ```
-npx serve phase-1
-# or
-python3 -m http.server -d phase-1
+cd phase-1 && npx vercel dev   # serves the site and api/sync with your env vars
 ```
 
-## Data
+`python3 -m http.server` also works, but only in local-only mode because it can't run the sync API.
 
-- Entries are stored in `localStorage` under the key `phase1-tracker-v1`. They stay on the device and browser where you logged them.
-- Use **Export JSON** to back up your entries, and **Import JSON** to restore them on another device.
-- **Export CSV** gives you a spreadsheet copy.
+## Data and sync
+
+Logs are stored in **Upstash Redis**, which is the source of truth, through a small serverless function at `api/sync.js`. Each browser also keeps a copy in `localStorage`, so the tracker works offline and syncs when the connection comes back.
+
+- Each entry is merged separately: when two devices have different versions of the same entry, the most recently edited one wins.
+- Deletes are kept as markers ("tombstones"), so an entry deleted on one device doesn't come back from another.
+- When a device connects for the first time, its existing local entries are uploaded and merged in.
+- The app syncs after every change, when you return to the tab, and every 60 seconds while it's open.
+- The API rejects any request without the right `x-sync-key` header, which must match `SYNC_PASSPHRASE`. Each device asks for the passphrase once and remembers it.
+
+### One-time setup on Vercel
+
+1. In the `phase-1` project, go to **Storage → Create Database → Upstash (Redis)**. Pick the free plan and connect it to the project. This adds the `KV_REST_API_URL` and `KV_REST_API_TOKEN` environment variables automatically.
+2. Go to **Settings → Environment Variables** and add `SYNC_PASSPHRASE` with a long passphrase of your choice. Make sure it applies to Production.
+3. Redeploy the project.
+4. On each device, open the site, go to **Your data → Sync across devices**, enter the passphrase and tap **Connect**.
+
+If you set up Upstash directly instead of through Vercel, use the `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` environment variables instead.
+
+Export JSON, Export CSV and Import JSON still work for backups. Importing now merges the file into your log instead of replacing it.
 
 ## Config
 
