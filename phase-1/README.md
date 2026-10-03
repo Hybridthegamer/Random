@@ -41,6 +41,22 @@ If you set up Upstash directly instead of through Vercel, use the `UPSTASH_REDIS
 
 Export JSON, Export CSV and Import JSON still work for backups. Importing now merges the file into your log instead of replacing it.
 
+## Market check
+
+The **Market check** panel calls `api/markets.js`, a serverless function that collects:
+- every live campaign market from the Limitless API (BTC/ETH 5m and 15m, BTC/ETH/SOL hourly and daily, BTC weekly)
+- spot prices and candles from Binance (`data-api.binance.vision`) and Coinbase
+
+For each market, it estimates **the chance of Up** by averaging two drift-free models:
+1. recent historical moves over the same time window, mirrored so there's no trend bias
+2. a normal-distribution model using volatility from the last 6 hours
+
+It compares that estimate with the Limitless buy prices to get the **edge**. It also shows "next candle" base rates: how often the next candle closed Up after the last closed candle's direction, measured over the last 1,000 candles.
+
+The panel refreshes every 30 seconds while the tab is open. No setup or keys are needed.
+
+The model is a random walk, so it doesn't account for news or order flow. Treat edges under about 5 points as noise.
+
 ## Config
 
 All campaign constants are at the top of `app.js`:

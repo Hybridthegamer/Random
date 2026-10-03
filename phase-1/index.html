@@ -55,6 +55,22 @@
       </div>
     </section>
 
+    <section aria-labelledby="mcTitle">
+      <div class="section-head">
+        <h2 id="mcTitle">Market check</h2>
+        <div class="row mc-actions">
+          <span class="hint" id="mcAge">Not loaded</span>
+          <button class="btn btn--ghost btn--sm" type="button" id="mcRefresh">Refresh</button>
+        </div>
+      </div>
+      <p class="hint mc-note">Fair = model odds of Up (recent moves + current volatility, no trend bias). Edge = fair odds − price you'd pay. Under ~5 pts is noise. Not financial advice.</p>
+      <div class="mc-grid" id="mcGrid"><div class="empty">Loading live markets…</div></div>
+      <div class="card mc-next">
+        <div class="mc-next__title">Next candle, from the last 1,000</div>
+        <div class="mc-chips" id="mcNext"></div>
+      </div>
+    </section>
+
     <section aria-labelledby="weeksTitle">
       <div class="section-head">
         <h2 id="weeksTitle">Weeks</h2>

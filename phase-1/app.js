@@ -448,10 +448,88 @@ What's your call for this hour? 👇
     $("#nextUpdate").textContent = fmtCountdown(next - now, true);
     $("#nextUpdate").title = "~" + new Date(next).toUTCString();
 
+    document.querySelectorAll("[data-mcount]").forEach(el => {
+      const left = Number(el.dataset.mcount) - now;
+      el.textContent = left > 0 ? fmtCountdown(left, true) : "Settling…";
+    });
+    if (mcData) $("#mcAge").textContent = `Updated ${Math.max(0, Math.round((now - mcData.at) / 1000))}s ago`;
     document.querySelectorAll("[data-countdown]").forEach(el => {
       el.textContent = fmtCountdown(Number(el.dataset.countdown) - now);
     });
   }
+
+  // ---- Market check ---------------------------------------------------------
+  // Live fair-value view of every campaign market, served by /api/markets.
+  const TF_LABEL = { "5m": "5-min", "15m": "15-min", "1h": "Hourly", "1d": "Daily", "1w": "Weekly" };
+  const pct = x => (x * 100).toFixed(x > 0.995 || x < 0.005 ? 1 : 0) + "%";
+  const cents = x => x == null ? "–" : Math.round(x * 100) + "¢";
+  const money = (x, ref) => (ref < 100 ? x.toFixed(2) : x.toLocaleString(undefined, { maximumFractionDigits: 2 }));
+  let mcData = null, mcLoading = false;
+
+  async function loadMarkets() {
+    if (mcLoading) return;
+    mcLoading = true;
+    $("#mcRefresh").disabled = true;
+    try {
+      const res = await fetch("api/markets", { cache: "no-store" });
+      if (!res.ok) throw new Error(res.status);
+      mcData = await res.json();
+      renderMarkets();
+    } catch {
+      if (!mcData) $("#mcGrid").innerHTML = `<div class="empty">Couldn't load market data. Tap Refresh to try again.</div>`;
+      $("#mcAge").textContent = "Refresh failed";
+    } finally {
+      mcLoading = false;
+      $("#mcRefresh").disabled = false;
+    }
+  }
+
+  function renderMarkets() {
+    const d = mcData;
+    if (!d.markets.length) {
+      $("#mcGrid").innerHTML = `<div class="empty">No campaign markets are live right now.</div>`;
+    } else {
+      $("#mcGrid").innerHTML = d.markets.map(m => {
+        const v = m.verdict;
+        const lean = m.fair >= 0.5 ? { side: "UP", p: m.fair } : { side: "DOWN", p: 1 - m.fair };
+        const diff = m.cur - m.open;
+        return `
+          <article class="mc-card mc-card--${v.kind}">
+            <div class="mc-card__head">
+              <span class="mc-card__name">${esc(m.asset)} · ${TF_LABEL[m.tf]}</span>
+              <span class="mc-badge mc-badge--${v.kind}">${esc(v.text)}${v.edge != null && v.kind !== "fair" ? ` +${(v.edge * 100).toFixed(1)}` : ""}</span>
+            </div>
+            <div class="mc-lean ${lean.side === "UP" ? "is-up" : "is-down"}">Likely ${lean.side} <b>${pct(lean.p)}</b></div>
+            <div class="mc-bar" role="img" aria-label="Model ${pct(m.fair)} Up versus market ${m.mktUp == null ? "unknown" : pct(m.mktUp)}">
+              <div class="mc-bar__fair" style="width:${(m.fair * 100).toFixed(1)}%"></div>
+              ${m.mktUp == null ? "" : `<div class="mc-bar__mkt" style="left:${(m.mktUp * 100).toFixed(1)}%" title="Market ${pct(m.mktUp)}"></div>`}
+            </div>
+            <div class="mc-legend"><span>Model Up ${pct(m.fair)}</span><span>Market Up ${m.mktUp == null ? "–" : pct(m.mktUp)}</span></div>
+            <dl class="mc-facts">
+              <div><dt>Open</dt><dd>${money(m.open, m.open)}</dd></div>
+              <div><dt>Now</dt><dd class="${diff >= 0 ? "is-up" : "is-down"}">${money(m.cur, m.cur)} <small>${diff >= 0 ? "+" : ""}${money(diff, m.cur)}</small></dd></div>
+              <div><dt>Buy Up / Down</dt><dd>${cents(m.buyUp)} / ${cents(m.buyDown)}</dd></div>
+              <div><dt>Ends in</dt><dd class="mono" data-mcount="${m.end}">${fmtCountdown(m.end - Date.now(), true)}</dd></div>
+            </dl>
+            <div class="mc-card__foot">
+              <span class="hint">Settles on ${esc(m.source)}</span>
+              <div class="row">
+                <a class="btn btn--ghost btn--sm" href="${esc(m.url)}" target="_blank" rel="noopener">Open ↗</a>
+                <button class="btn btn--lime btn--sm" type="button" data-mclog="${esc(m.slug)}">Log post</button>
+              </div>
+            </div>
+          </article>`;
+      }).join("");
+    }
+    const nice = { "5m": "5m", "15m": "15m", "1h": "1h" };
+    $("#mcNext").innerHTML = d.nextRates.filter(r => r.eligible).map(r => {
+      const side = r.nextUp >= 0.5 ? "UP" : "DOWN", p = Math.max(r.nextUp, 1 - r.nextUp);
+      return `<span class="mc-chip" title="Last closed ${r.lastUp ? "Up" : "Down"}; n=${r.n}"><b>${r.asset} ${nice[r.tf]}</b> last ${r.lastUp ? "▲" : "▼"} → next ${side} ${pct(p)}</span>`;
+    }).join("") + (d.missing.length ? `<span class="hint mc-missing">Not live on Limitless now: ${d.missing.map(esc).join(", ")}</span>` : "");
+    tick();
+  }
+
+  $("#mcRefresh").addEventListener("click", loadMarkets);
 
   // ---- Form -----------------------------------------------------------------
   const dlg = $("#logDialog");
@@ -568,6 +646,11 @@ What's your call for this hour? 👇
       catch { toast("Copy blocked. Long-press the text to copy"); }
       return;
     }
+    if (t.dataset.mclog && mcData) {
+      const m = mcData.markets.find(x => x.slug === t.dataset.mclog);
+      if (m) openForm({ postedAt: Date.now(), status: "submitted", kind: "original", asset: m.asset, timeframe: m.tf, marketUrl: m.url }, null, true);
+      return;
+    }
     if (t.dataset.use) {
       const d = DRAFTS.find(x => x.id === t.dataset.use);
       openForm({ postedAt: Date.now(), status: "submitted", kind: d.kind, asset: d.asset, timeframe: d.timeframe, text: d.text }, d.id, true);
@@ -658,6 +741,8 @@ What's your call for this hour? 👇
   setInterval(() => { if (!document.hidden) scheduleSync(0); }, 60e3);
 
   render();
+  loadMarkets();
+  setInterval(() => { if (!document.hidden) loadMarkets(); }, 30e3);
   setSyncStatus("off", "Local only");
   scheduleSync(0);
   tick();
