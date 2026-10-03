@@ -60,6 +60,8 @@ It compares that estimate with the Limitless buy prices to get the **edge**. Eac
 
 Calls on markets with almost no volume are tagged *(thin book)*.
 
+**Post button:** each card can write an X draft from the market's live state: price vs open, time left, the model's odds against the market price, and the reversal pattern. There are separate templates for BUY, LEAN, a near-certain outcome, a coin-flip, too late and weekly markets. **New variant** swaps the hook and CTA wording. The draft always tags @trylimitless and includes the `/markets/` link, with an optional referral code. It's trimmed to 280 characters the way X counts them, and checked against the campaign rules. **Open in X** opens X's post screen with the text filled in (attach your screenshot there), and **Log it** opens the log form with the details filled in.
+
 **Model scorecard:** the first time the panel sees a market, it records the model's call in your synced log. After the market settles, `GET /api/markets?resolve=<slugs>` fetches the result. The scorecard shows:
 - hit rate against expected for BUY and LEAN calls, plus P&L per $1 staked at the quoted price (fees not included)
 - the same for calls you marked **I took it**

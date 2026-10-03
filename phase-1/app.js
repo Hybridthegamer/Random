@@ -518,6 +518,7 @@ What's your call for this hour? 👇
             <div class="mc-card__foot">
               <span class="hint">Settles on ${esc(m.source)}</span>
               <div class="row">
+                <button class="btn btn--ghost btn--sm" type="button" data-post="${esc(m.slug)}">Post</button>
                 ${m.call.action !== "SKIP" ? `<button class="btn btn--ghost btn--sm ${callTaken(m.slug) ? "is-taken" : ""}" type="button" data-took="${esc(m.slug)}">${callTaken(m.slug) ? "Took it ✓" : "I took it"}</button>` : ""}
                 <a class="btn btn--ghost btn--sm" href="${esc(m.url)}" target="_blank" rel="noopener">Open ↗</a>
                 <button class="btn btn--lime btn--sm" type="button" data-mclog="${esc(m.slug)}">Log post</button>
@@ -538,6 +539,157 @@ What's your call for this hour? 👇
   }
 
   $("#mcRefresh").addEventListener("click", loadMarkets);
+
+  // ---- Post composer --------------------------------------------------------
+  // Builds an X draft from the market's live state + the model's call, trimmed to 280 weighted chars.
+  const REF_KEY = "phase1-ref";
+  let postMarket = null, postVariant = 0;
+
+  // X counts every URL as 23 and most emoji / non-Latin symbols as 2.
+  function xLength(text) {
+    const t = text.replace(/https?:\/\/\S+/g, "x".repeat(23)).replace(/\uFE0F/g, "");
+    let n = 0;
+    for (const ch of t) {
+      const o = ch.codePointAt(0);
+      n += (o <= 0x10FF || (o >= 0x2000 && o <= 0x200D) || (o >= 0x2010 && o <= 0x201F) || (o >= 0x2032 && o <= 0x2037)) ? 1 : 2;
+    }
+    return n;
+  }
+
+  // Whole dollars for BTC-sized prices, cents for ETH/SOL.
+  const usd = (x, ref) => "$" + (ref < 10000 ? x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : Math.round(x).toLocaleString("en-US"));
+  function leftText(ms) {
+    const m = Math.max(0, Math.round(ms / 60e3));
+    if (m < 60) return `${m}m`;
+    if (m < 1440) return `${Math.floor(m / 60)}h ${m % 60}m`;
+    return `${Math.floor(m / 1440)}d ${Math.floor((m % 1440) / 60)}h`;
+  }
+  const TF_WORD = { "5m": "5-min", "15m": "15-min", "1h": "hourly", "1d": "daily", "1w": "weekly" };
+  const TF_NAME = { "5m": "5-Min", "15m": "15-Min", "1h": "Hourly", "1d": "Daily", "1w": "Weekly" };
+
+  // Each template returns lines; `null` marks optional lines dropped first when over 280.
+  function draftLines(m, variant) {
+    const name = `${m.asset} ${TF_NAME[m.tf]}`;
+    const c = m.call, diff = m.cur - m.open;
+    const up = s => s === "UP";
+    const arrow = s => up(s) ? "⬆️" : "⬇️";
+    const pSide = s => Math.round((up(s) ? m.fair : 1 - m.fair) * 100);
+    const move = `${usd(m.open, m.open)} open → ${usd(m.cur, m.cur)} now (${diff >= 0 ? "+" : "−"}${usd(Math.abs(diff), m.cur).slice(1)}), ${leftText(m.end - Date.now())} left`;
+    const prior = m.prior ? { opt: true, text: `• After a ${m.prior.prevUp ? "green" : "red"} ${TF_WORD[m.tf]} candle, the next closed Up ${Math.round(m.prior.p * 100)}% (last 1,000)` } : null;
+    const cta = variant % 2 ? `Up or Down? Your call on @trylimitless 👇` : `Your call on @trylimitless 👇`;
+    const lean = m.fair >= 0.5 ? "UP" : "DOWN";
+
+    if (c.action === "BUY" || c.action === "LEAN") {
+      const cents = Math.round(c.price * 100);
+      const hook = variant % 2 ? `${name}: ${c.side} at ${cents}¢ is a gift ${arrow(c.side)}` : `${name}: I'm taking ${c.side} ${arrow(c.side)}`;
+      return [hook, "",
+        `• ${move}`,
+        pSide(c.side) >= 50
+          ? `• My model: ${c.side} ${pSide(c.side)}%. Market charges ${cents}¢`
+          : `• My model: ${c.side} ${pSide(c.side)}%, priced at just ${cents}¢. Underdog, but underpriced`,
+        prior, "",
+        { opt: true, text: c.action === "LEAN" ? "Thin edge, small size. Price > vibes." : "Data, not vibes. Simple!" },
+        cta];
+    }
+    if (m.verdict.kind === "illiquid" || m.tf === "1w") {
+      const need = Math.abs(diff) / m.open * 100;
+      const other = up(lean) ? "DOWN" : "UP";
+      return [`${name}: ${lean} ${arrow(lean)}`, "",
+        `• Price to beat: ${usd(m.open, m.open)}`,
+        `• Now: ${usd(m.cur, m.cur)} (${diff >= 0 ? "+" : "−"}${need.toFixed(1)}%)`,
+        `• ${leftText(m.end - Date.now())} left`, "",
+        { opt: true, text: `For ${other} to win, ${m.asset} has to move ${need.toFixed(1)}% the other way. I'll take ${lean}.` },
+        cta];
+    }
+    if (m.verdict.kind === "late") {
+      return [`${name}: too late for this one ⏱️`, "",
+        `• ${move}`,
+        `• My model leans ${lean} ${pSide(lean)}%`, "",
+        { opt: true, text: "Not chasing the last minutes. Next market opens soon 👀" },
+        cta];
+    }
+    if (Math.max(m.fair, 1 - m.fair) >= 0.8) {
+      const mk = Math.round((up(lean) ? (m.mktUp ?? 0.5) : 1 - (m.mktUp ?? 0.5)) * 100);
+      return [`${name}: ${lean} looks locked ${arrow(lean)}`, "",
+        `• ${move}`,
+        `• My model: ${lean} ${pSide(lean)}%. ${Math.abs(mk - pSide(lean)) <= 8 ? `Market agrees (${mk}%)` : `Market says ${mk}%`}`, "",
+        { opt: true, text: variant % 2 ? "Nothing cheap left here. Eyes on the next one 👀" : "No value left to grab. Next one loading 👀" },
+        cta];
+    }
+    return [variant % 2 ? `${name}: coin-flip zone 🪙` : `${name}: no edge, no bet`, "",
+      `• ${move}`,
+      `• My model: Up ${Math.round(m.fair * 100)}%. Market: Up ${Math.round((m.mktUp ?? 0.5) * 100)}%`,
+      prior, "",
+      { opt: true, text: "Sometimes the best trade is patience." },
+      `Up or Down? ${cta.replace(/^Up or Down\? /, "")}`];
+  }
+
+  function marketLink(m) {
+    const f = $("#postForm").elements;
+    const code = f.refCode.value.trim();
+    return f.ref.checked && /^[A-Za-z0-9]{4,24}$/.test(code) ? `${m.url}?r=${code}` : m.url;
+  }
+
+  function buildDraft(m, variant) {
+    let lines = draftLines(m, variant).filter(l => l !== null);
+    const link = marketLink(m);
+    const assemble = ls => ls.map(l => typeof l === "string" ? l : l.text).join("\n").replace(/\n{3,}/g, "\n\n") + "\n" + link;
+    let text = assemble(lines);
+    while (xLength(text) > 280 && lines.some(l => typeof l === "object")) {
+      const i = lines.map(l => typeof l === "object").lastIndexOf(true);
+      lines.splice(i, 1);
+      text = assemble(lines);
+    }
+    return text;
+  }
+
+  function postChecks() {
+    const f = $("#postForm").elements, text = f.text.value, n = xLength(text);
+    $("#postCount").textContent = `${n} / 280`;
+    $("#postCount").classList.toggle("is-over", n > 280);
+    const lower = text.toLowerCase();
+    const checks = [
+      { ok: n <= 280, label: n <= 280 ? "Fits in 280 characters" : `${n - 280} characters over 280` },
+      { ok: /@trylimitless\b/i.test(text), label: "Tags @trylimitless" },
+      { ok: /limitless\.exchange\/markets\//i.test(text), label: "Has the /markets/ link" },
+      { ok: !RIVALS.some(r => lower.includes(r)), label: "No rival prediction market mentioned" },
+    ];
+    $("#postChecks").innerHTML = checks.map(c => `<div class="chk ${c.ok ? "ok" : "bad"}"><i>${c.ok ? "✓" : "✕"}</i><span>${esc(c.label)}</span></div>`).join("");
+  }
+
+  function openPost(m) {
+    postMarket = m; postVariant = 0;
+    const f = $("#postForm").elements;
+    try { const r = JSON.parse(localStorage.getItem(REF_KEY) || "{}"); f.ref.checked = !!r.on; f.refCode.value = r.code || ""; } catch {}
+    $("#postTitle").textContent = `Post: ${m.asset} ${TF_NAME[m.tf]}`;
+    f.text.value = buildDraft(m, 0);
+    postChecks();
+    $("#postDialog").showModal();
+  }
+
+  $("#postForm").addEventListener("input", ev => {
+    const f = $("#postForm").elements;
+    if (ev.target.name === "ref" || ev.target.name === "refCode") {
+      try { localStorage.setItem(REF_KEY, JSON.stringify({ on: f.ref.checked, code: f.refCode.value.trim() })); } catch {}
+      // swap the link in place so edits survive
+      f.text.value = f.text.value.replace(/https:\/\/limitless\.exchange\/markets\/\S+/, marketLink(postMarket));
+    }
+    postChecks();
+  });
+  $("#postRegen").addEventListener("click", () => {
+    postVariant++;
+    $("#postForm").elements.text.value = buildDraft(postMarket, postVariant);
+    postChecks();
+  });
+  $("#postOpen").addEventListener("click", () => {
+    const text = $("#postForm").elements.text.value;
+    window.open("https://x.com/intent/post?text=" + encodeURIComponent(text), "_blank", "noopener");
+  });
+  $("#postLog").addEventListener("click", () => {
+    const m = postMarket, text = $("#postForm").elements.text.value;
+    $("#postDialog").close();
+    openForm({ postedAt: Date.now(), status: "submitted", kind: "original", asset: m.asset, timeframe: m.tf, marketUrl: m.url, text }, null, true);
+  });
 
   // ---- Calibration log ------------------------------------------------------
   // The model's one-shot call is stored once per market (first time the panel sees it, unless it's
@@ -745,6 +897,11 @@ What's your call for this hour? 👇
       const d = DRAFTS.find(x => x.id === t.dataset.copy);
       try { await navigator.clipboard.writeText(d.text); toast("Copied, now fill the [brackets]"); }
       catch { toast("Copy blocked. Long-press the text to copy"); }
+      return;
+    }
+    if (t.dataset.post && mcData) {
+      const m = mcData.markets.find(x => x.slug === t.dataset.post);
+      if (m) openPost(m);
       return;
     }
     if (t.dataset.took) {

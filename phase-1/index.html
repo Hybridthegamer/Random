@@ -253,6 +253,31 @@
     </form>
   </dialog>
 
+  <!-- Post composer -->
+  <dialog id="postDialog" class="sheet">
+    <form method="dialog" id="postForm">
+      <div class="sheet__head">
+        <h3 id="postTitle">Post draft</h3>
+        <button class="icon-btn" value="cancel" aria-label="Close">✕</button>
+      </div>
+      <label class="field">
+        <span>Draft (edit freely)</span>
+        <textarea name="text" rows="11" spellcheck="true"></textarea>
+      </label>
+      <div class="post-meta">
+        <span id="postCount" class="mono">0 / 280</span>
+        <label class="post-ref"><input type="checkbox" name="ref"> Add referral code <input type="text" name="refCode" placeholder="J3H8LSQBZG" maxlength="24" autocomplete="off"></label>
+      </div>
+      <div class="preflight" id="postChecks" aria-live="polite"></div>
+      <p class="hint">Opens X with this text filled in. Attach your position screenshot there, then post and submit it in the Mini App.</p>
+      <div class="sheet__foot">
+        <button class="btn btn--ghost" type="button" id="postRegen">New variant</button>
+        <button class="btn btn--ghost" type="button" id="postLog">Log it</button>
+        <button class="btn btn--lime" type="button" id="postOpen">Open in X ↗</button>
+      </div>
+    </form>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script type="module" src="app.js"></script>

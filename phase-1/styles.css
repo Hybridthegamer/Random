@@ -292,3 +292,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--text-3); outline
 .score-recent { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
 .score-recent .is-ok { color: var(--yes); font-weight: 700; }
 .score-recent .is-bad { color: var(--no); font-weight: 700; }
+
+/* Post composer */
+.post-meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin: -4px 0 10px; font-size: 13px; color: var(--text-2); }
+#postCount.is-over { color: var(--no); font-weight: 700; }
+.post-ref { display: inline-flex; align-items: center; gap: 6px; }
+.post-ref input[type=checkbox] { width: auto; min-height: 0; }
+.post-ref input[type=text] { width: 120px; min-height: 32px; padding: 4px 8px; }
+#postDialog .sheet__foot { flex-wrap: wrap; }
+#postDialog textarea { font-size: 15px; line-height: 1.45; }
