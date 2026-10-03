@@ -267,3 +267,28 @@ input:focus, select:focus, textarea:focus { border-color: var(--text-3); outline
 .mc-missing { flex-basis: 100%; margin-top: 4px; }
 .mc-card__head { flex-wrap: wrap; }
 .mc-card__name { white-space: nowrap; }
+
+/* One-shot calls + scorecard */
+.mc-calls { margin-bottom: 12px; }
+.mc-calls__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.mc-calls__item { display: flex; gap: 8px; align-items: baseline; font-size: 14px; color: var(--text-2); }
+.mc-calls__tag { flex: none; min-width: 46px; text-align: center; font-size: 11px; font-weight: 800; letter-spacing: .6px; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--line); color: var(--text-3); }
+.mc-calls__item--buy { color: var(--text); }
+.mc-calls__item--buy .mc-calls__tag { background: var(--lime); color: var(--lime-ink); border-color: var(--lime); }
+.mc-calls__item--lean .mc-calls__tag { color: var(--blue); border-color: rgba(0,121,254,.5); }
+.mc-call { font: 800 20px/1.1 var(--display); letter-spacing: .2px; }
+.mc-call--buy { color: var(--lime); }
+.mc-call--lean { color: var(--blue); }
+.mc-call--skip { color: var(--text-3); }
+.btn.is-taken { background: rgba(195,255,1,.15); color: var(--lime); }
+.score-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.score-cell { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px; min-width: 0; }
+.score-cell--wide { grid-column: 1 / -1; }
+.score-cell__name { font-weight: 600; font-size: 14px; }
+.score-cell__name .hint { display: block; font-weight: 400; font-size: 12px; }
+.score-cell__big { font: 800 28px/1.1 var(--display); margin-top: 6px; }
+.score-cell__big small { font-size: 16px; color: var(--text-3); }
+.score-cell__meta { color: var(--text-2); font-size: 13px; margin-top: 4px; }
+.score-recent { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+.score-recent .is-ok { color: var(--yes); font-weight: 700; }
+.score-recent .is-bad { color: var(--no); font-weight: 700; }

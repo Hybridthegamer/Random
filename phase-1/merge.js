@@ -4,7 +4,9 @@
 // standings snapshot carries `updatedAt`; deletes are kept as tombstones
 // ({ deleted: true }) so a delete on one device beats a stale copy on another.
 
-export const blankDoc = () => ({ version: 2, entries: [], standings: [], usedDrafts: [] });
+// `calls` is the model scorecard: one record per market (id = market slug), capped to the newest MAX_CALLS.
+export const blankDoc = () => ({ version: 2, entries: [], standings: [], usedDrafts: [], calls: [] });
+const MAX_CALLS = 1500;
 
 const stamp = x => Number(x.updatedAt) || Number(x.submittedAt) || Number(x.postedAt) || Number(x.at) || 0;
 
@@ -18,6 +20,9 @@ export function normaliseDoc(d) {
     .filter(s => s && Number(s.at))
     .map(s => ({ ...s, at: Number(s.at), updatedAt: stamp(s) }));
   b.usedDrafts = (Array.isArray(d.usedDrafts) ? d.usedDrafts : []).filter(x => typeof x === "string");
+  b.calls = (Array.isArray(d.calls) ? d.calls : [])
+    .filter(c => c && typeof c.id === "string" && Number(c.at))
+    .map(c => ({ ...c, updatedAt: stamp(c) }));
   return b;
 }
 
@@ -40,5 +45,6 @@ export function mergeDocs(a, b) {
     entries: mergeBy(a.entries, b.entries, x => x.id),
     standings: mergeBy(a.standings, b.standings, x => String(x.at)),
     usedDrafts: [...new Set([...a.usedDrafts, ...b.usedDrafts])],
+    calls: mergeBy(a.calls, b.calls, x => x.id).sort((x, y) => x.at - y.at).slice(-MAX_CALLS),
   };
 }

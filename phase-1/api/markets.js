@@ -1,9 +1,12 @@
-// GET /api/markets → fair-value check for every live campaign market on Limitless.
+// GET /api/markets               → fair-value check + one-shot call for every live campaign market.
+// GET /api/markets?resolve=a,b,c  → resolution status of up to 25 market slugs (for the scorecard).
 //
 // For each market: P(Up) from two drift-free estimates, averaged —
 //   (a) empirical: symmetrised historical moves over the same horizon (fat tails, longer lookback)
 //   (b) normal model with volatility from the last 6h of 1m returns (current regime)
-// then edge = fair probability − price you'd pay. Plus "next candle" base rates (mean reversion).
+// For 5m/15m/1h markets that's then nudged by the reversal prior (how often a candle closed Up after
+// the previous one closed the way the pre-market candle did), weighted by the share of the period
+// still to run. Edge = fair probability − price you'd pay.
 // Public market data only, so no passphrase; responses are edge-cached for a few seconds.
 
 export const config = { maxDuration: 30 };
@@ -77,6 +80,21 @@ function pUp(k, open, cur, mins, strict) {
   return { fair: (emp + norm) / 2, emp, norm };
 }
 
+// Reversal prior for the candle a market covers: P(Up | direction of the candle just before it).
+function reversalPrior(rows, start, tfMs) {
+  const closed = rows.filter(r => Number(r[6]) < Date.now());
+  const ups = closed.map(r => Number(r[4]) >= Number(r[1]));
+  const rate = dir => {
+    let n = 0, up = 0;
+    for (let i = 1; i < ups.length; i++) if (ups[i - 1] === dir) { n++; if (ups[i]) up++; }
+    return n ? up / n : 0.5;
+  };
+  const prev = closed.find(r => Number(r[0]) === start - tfMs);
+  if (!prev) return null;
+  const prevUp = Number(prev[4]) >= Number(prev[1]);
+  return { prevUp, p: rate(prevUp) };
+}
+
 function verdict(row) {
   const { fair, buyUp, buyDown, tf, minsLeft } = row;
   if ((tf === "5m" && minsLeft < 2) || (tf === "15m" && minsLeft < 4)) return { kind: "late", text: "Too late to act" };
@@ -91,8 +109,48 @@ function verdict(row) {
   return { kind: "fair", side: best.side, edge: best.edge, text: "Priced fairly, skip" };
 }
 
+// The one-line "what would the model do" call.
+function oneShot(row) {
+  const v = row.verdict;
+  const tfName = { "5m": "5m", "15m": "15m", "1h": "1h", "1d": "Daily", "1w": "Weekly" }[row.tf];
+  // Markets with almost no volume have stale/wide quotes, so their odds mean little.
+  const label = `${row.asset} ${tfName}` + (row.volume < 10 ? " (thin book)" : "");
+  const lean = row.fair >= 0.5 ? "UP" : "DOWN";
+  const leanP = Math.round(Math.max(row.fair, 1 - row.fair) * 100);
+  const c = x => `${Math.round(x * 100)}¢`;
+  if (v.kind === "value") {
+    const price = v.side === "UP" ? row.buyUp : row.buyDown;
+    return { action: "BUY", side: v.side, price, text: `${label} · BUY ${v.side} @${c(price)} (edge +${(v.edge * 100).toFixed(1)})` };
+  }
+  if (v.kind === "thin") {
+    const price = v.side === "UP" ? row.buyUp : row.buyDown;
+    return { action: "LEAN", side: v.side, price, text: `${label} · LEAN ${v.side} @${c(price)}, small stake (edge +${(v.edge * 100).toFixed(1)})` };
+  }
+  const why = v.kind === "late" ? "too late" : v.kind === "illiquid" ? "no sellers" : "priced fairly";
+  return { action: "SKIP", side: lean, price: null, text: `${label} · SKIP, ${why} (likely ${lean} ${leanP}%)` };
+}
+
+async function resolveSlugs(slugs) {
+  return Promise.all(slugs.map(async slug => {
+    try {
+      const m = await getJSON(`${LIMITLESS}/markets/${encodeURIComponent(slug)}`);
+      const idx = m.winningOutcomeIndex;
+      const winner = m.status === "RESOLVED" && (idx === 0 || idx === 1) ? (idx === 0 ? "UP" : "DOWN") : null;
+      return { slug, status: m.status || null, winner };
+    } catch {
+      return { slug, status: null, winner: null };
+    }
+  }));
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "Method not allowed." }); }
+  const q = req.query && req.query.resolve !== undefined ? req.query.resolve : new URL(req.url, "http://x").searchParams.get("resolve");
+  if (q) {
+    const slugs = [...new Set(String(q).split(",").map(s => s.trim()).filter(s => /^[a-z0-9-]{3,120}$/.test(s)))].slice(0, 25);
+    res.setHeader("Cache-Control", "public, s-maxage=30");
+    return res.status(200).json({ results: await resolveSlugs(slugs) });
+  }
   try {
     const kl = (a, iv) => getJSON(`${BINANCE}/klines?symbol=${a}USDT&interval=${iv}&limit=1000`);
     const [markets, binanceSpot, coinbaseSpot, klines] = await Promise.all([
@@ -122,22 +180,40 @@ export default async function handler(req, res) {
       const open = openPriceOf(m);
       const end = endOf(m, tf);
       if (!open || !(end > now)) continue;
-      // 5m/15m settle on Chainlink and weekly on Pyth (USD); hourly/daily on Binance USDT candles.
-      const usdQuoted = tf === "5m" || tf === "15m" || tf === "1w";
-      const cur = (usdQuoted && spot[asset].coinbase) || spot[asset].binance;
+      // Hourly/daily settle on Binance USDT candles, so Binance spot is exact. 5m/15m settle on a Chainlink
+      // 60s TWAP, which sits a few dollars off any one exchange: estimate that basis from the Binance
+      // minute just before the market opened, and carry it forward. Weekly (Pyth) uses Coinbase USD.
+      let cur = spot[asset].binance, basis = null;
+      if (tf === "5m" || tf === "15m") {
+        const startMs = Date.parse(m.startAt);
+        const pre = raw[asset]["1m"].find(r => Number(r[0]) === startMs - 60e3);
+        if (pre) { basis = open - (Number(pre[1]) + Number(pre[4])) / 2; cur = spot[asset].binance + basis; }
+        else cur = spot[asset].coinbase || cur;
+      } else if (tf === "1w") cur = spot[asset].coinbase || cur;
       const minsLeft = (end - now) / 60e3;
       const p = pUp(K[asset], open, cur, minsLeft, tf === "1w");
+      // Reversal prior, weighted by how much of the period is still to run.
+      let prior = null, fair = p.fair;
+      if (TF_MS[tf] && tf !== "1d") {
+        prior = reversalPrior(raw[asset][tf], Date.parse(m.startAt), TF_MS[tf]);
+        if (prior) {
+          const w = Math.min(1, Math.max(0, (end - now) / TF_MS[tf]));
+          fair = Math.min(0.995, Math.max(0.005, p.fair + (prior.p - 0.5) * w));
+          prior.weight = w;
+        }
+      }
       const buy = (m.tradePrices && m.tradePrices.buy && m.tradePrices.buy.market) || [];
       const row = {
         asset, tf, slug: m.slug, url: `https://limitless.exchange/markets/${m.slug}`,
-        start: Date.parse(m.startAt), end, minsLeft, open, cur,
+        start: Date.parse(m.startAt), end, minsLeft, open, cur, basis,
         source: tf === "5m" || tf === "15m" ? "Chainlink" : tf === "1w" ? "Pyth" : "Binance",
-        fair: p.fair, fairHist: p.emp, fairVol: p.norm,
+        fair, fairRandomWalk: p.fair, fairHist: p.emp, fairVol: p.norm, prior,
         mktUp: Array.isArray(m.prices) ? m.prices[0] : null,
         buyUp: buy[0] ?? null, buyDown: buy[1] ?? null,
         volume: Number(m.volumeFormatted) || 0,
       };
       row.verdict = verdict(row);
+      row.call = oneShot(row);
       rows.push(row);
     }
     const order = { "5m": 0, "15m": 1, "1h": 2, "1d": 3, "1w": 4 };

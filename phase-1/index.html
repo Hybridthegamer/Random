@@ -63,11 +63,26 @@
           <button class="btn btn--ghost btn--sm" type="button" id="mcRefresh">Refresh</button>
         </div>
       </div>
-      <p class="hint mc-note">Fair = model odds of Up (recent moves + current volatility, no trend bias). Edge = fair odds − price you'd pay. Under ~5 pts is noise. Not financial advice.</p>
+      <p class="hint mc-note">Fair = model odds of Up: recent moves + current volatility, nudged by the reversal pattern early in 5m/15m/1h periods. Edge = fair odds − price you'd pay. Under ~5 pts is noise. Not financial advice.</p>
+      <div class="card mc-calls">
+        <div class="mc-next__title">One-shot calls</div>
+        <ul class="mc-calls__list" id="mcCalls"><li class="hint">Loading…</li></ul>
+      </div>
       <div class="mc-grid" id="mcGrid"><div class="empty">Loading live markets…</div></div>
       <div class="card mc-next">
         <div class="mc-next__title">Next candle, from the last 1,000</div>
         <div class="mc-chips" id="mcNext"></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="scoreTitle">
+      <div class="section-head">
+        <h2 id="scoreTitle">Model scorecard</h2>
+        <span class="hint">Every call the panel sees is logged and checked after it settles</span>
+      </div>
+      <div class="card">
+        <div class="score-grid" id="scoreGrid"></div>
+        <ol class="score-recent" id="scoreRecent"></ol>
       </div>
     </section>
 

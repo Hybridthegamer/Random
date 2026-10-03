@@ -51,7 +51,22 @@ For each market, it estimates **the chance of Up** by averaging two drift-free m
 1. recent historical moves over the same time window, mirrored so there's no trend bias
 2. a normal-distribution model using volatility from the last 6 hours
 
-It compares that estimate with the Limitless buy prices to get the **edge**. It also shows "next candle" base rates: how often the next candle closed Up after the last closed candle's direction, measured over the last 1,000 candles.
+For 5m, 15m and hourly markets, this estimate is then adjusted by the **reversal pattern**: how often a candle closed Up after the previous candle closed the way the one before this market did. The adjustment counts fully at the start of the period and fades as time runs out. The 5m and 15m markets settle on a Chainlink price that sits a few dollars away from exchange prices. The function measures that gap from the Binance minute just before each market opens and corrects for it.
+
+It compares that estimate with the Limitless buy prices to get the **edge**. Each market then gets a **one-shot call**:
+- `BUY <side>` for an edge of 5 points or more
+- `LEAN <side>` for 2–5 points
+- `SKIP` (priced fairly, too late or no sellers), with the model's likely side
+
+Calls on markets with almost no volume are tagged *(thin book)*.
+
+**Model scorecard:** the first time the panel sees a market, it records the model's call in your synced log. After the market settles, `GET /api/markets?resolve=<slugs>` fetches the result. The scorecard shows:
+- hit rate against expected for BUY and LEAN calls, plus P&L per $1 staked at the quoted price (fees not included)
+- the same for calls you marked **I took it**
+- direction accuracy across all calls
+- a Brier score comparing the model with the market
+
+A call is only recorded while the tracker is open somewhere. It also shows "next candle" base rates: how often the next candle closed Up after the last closed candle's direction, measured over the last 1,000 candles.
 
 The panel refreshes every 30 seconds while the tab is open. No setup or keys are needed.
 

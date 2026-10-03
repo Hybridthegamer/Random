@@ -285,6 +285,7 @@ What's your call for this hour? 👇
     renderDrafts();
     renderStandings();
     renderTicker();
+    renderScorecard();
     const verified = entries().filter(e => e.status === "verified" && PHASE_WEEKS.includes(entryWeek(e))).length;
     $("#totVerified").textContent = verified;
   }
@@ -474,7 +475,9 @@ What's your call for this hour? 👇
       const res = await fetch("api/markets", { cache: "no-store" });
       if (!res.ok) throw new Error(res.status);
       mcData = await res.json();
+      recordCalls();
       renderMarkets();
+      resolveCalls();
     } catch {
       if (!mcData) $("#mcGrid").innerHTML = `<div class="empty">Couldn't load market data. Tap Refresh to try again.</div>`;
       $("#mcAge").textContent = "Refresh failed";
@@ -499,7 +502,8 @@ What's your call for this hour? 👇
               <span class="mc-card__name">${esc(m.asset)} · ${TF_LABEL[m.tf]}</span>
               <span class="mc-badge mc-badge--${v.kind}">${esc(v.text)}${v.edge != null && v.kind !== "fair" ? ` +${(v.edge * 100).toFixed(1)}` : ""}</span>
             </div>
-            <div class="mc-lean ${lean.side === "UP" ? "is-up" : "is-down"}">Likely ${lean.side} <b>${pct(lean.p)}</b></div>
+            <div class="mc-call mc-call--${m.call.action.toLowerCase()}">${esc(m.call.text.split(" · ")[1])}</div>
+            <div class="mc-lean ${lean.side === "UP" ? "is-up" : "is-down"}">Likely ${lean.side} <b>${pct(lean.p)}</b>${m.prior ? `<span class="hint" title="Previous candle closed ${m.prior.prevUp ? "Up" : "Down"}; next closed Up ${pct(m.prior.p)} historically; weight ${pct(m.prior.weight)}"> · reversal ${m.prior.prevUp ? "▲" : "▼"} ${pct(m.prior.p)} Up</span>` : ""}</div>
             <div class="mc-bar" role="img" aria-label="Model ${pct(m.fair)} Up versus market ${m.mktUp == null ? "unknown" : pct(m.mktUp)}">
               <div class="mc-bar__fair" style="width:${(m.fair * 100).toFixed(1)}%"></div>
               ${m.mktUp == null ? "" : `<div class="mc-bar__mkt" style="left:${(m.mktUp * 100).toFixed(1)}%" title="Market ${pct(m.mktUp)}"></div>`}
@@ -514,6 +518,7 @@ What's your call for this hour? 👇
             <div class="mc-card__foot">
               <span class="hint">Settles on ${esc(m.source)}</span>
               <div class="row">
+                ${m.call.action !== "SKIP" ? `<button class="btn btn--ghost btn--sm ${callTaken(m.slug) ? "is-taken" : ""}" type="button" data-took="${esc(m.slug)}">${callTaken(m.slug) ? "Took it ✓" : "I took it"}</button>` : ""}
                 <a class="btn btn--ghost btn--sm" href="${esc(m.url)}" target="_blank" rel="noopener">Open ↗</a>
                 <button class="btn btn--lime btn--sm" type="button" data-mclog="${esc(m.slug)}">Log post</button>
               </div>
@@ -521,6 +526,9 @@ What's your call for this hour? 👇
           </article>`;
       }).join("");
     }
+    $("#mcCalls").innerHTML = d.markets.length
+      ? d.markets.map(m => `<li class="mc-calls__item mc-calls__item--${m.call.action.toLowerCase()}"><span class="mc-calls__tag">${m.call.action}</span>${esc(m.call.text)}</li>`).join("")
+      : `<li class="hint">No campaign markets live.</li>`;
     const nice = { "5m": "5m", "15m": "15m", "1h": "1h" };
     $("#mcNext").innerHTML = d.nextRates.filter(r => r.eligible).map(r => {
       const side = r.nextUp >= 0.5 ? "UP" : "DOWN", p = Math.max(r.nextUp, 1 - r.nextUp);
@@ -530,6 +538,99 @@ What's your call for this hour? 👇
   }
 
   $("#mcRefresh").addEventListener("click", loadMarkets);
+
+  // ---- Calibration log ------------------------------------------------------
+  // The model's one-shot call is stored once per market (first time the panel sees it, unless it's
+  // already too late), then resolved through /api/markets?resolve= once the market settles.
+  const callsLive = () => state.calls || (state.calls = []);
+  const callTaken = slug => !!callsLive().find(c => c.id === slug && c.taken);
+
+  function recordCalls() {
+    const have = new Set(callsLive().map(c => c.id));
+    let added = 0;
+    for (const m of mcData.markets) {
+      if (have.has(m.slug) || m.verdict.kind === "late") continue;
+      callsLive().push(touch({
+        id: m.slug, asset: m.asset, tf: m.tf, url: m.url, at: mcData.at, end: m.end,
+        minsLeft: Math.round(m.minsLeft * 10) / 10, open: m.open, cur: m.cur,
+        fair: m.fair, mkt: m.mktUp, buyUp: m.buyUp, buyDown: m.buyDown,
+        action: m.call.action, side: m.call.side, price: m.call.price, text: m.call.text,
+        outcome: null, taken: false,
+      }));
+      added++;
+    }
+    if (added) { save(); renderScorecard(); }
+  }
+
+  let resolving = false;
+  async function resolveCalls() {
+    if (resolving) return;
+    const now = Date.now();
+    const due = callsLive().filter(c => !c.outcome && c.end + 60e3 < now).slice(0, 25);
+    if (!due.length) return;
+    resolving = true;
+    try {
+      const res = await fetch("api/markets?resolve=" + due.map(c => encodeURIComponent(c.id)).join(","), { cache: "no-store" });
+      if (!res.ok) return;
+      const { results } = await res.json();
+      let changed = 0;
+      for (const r of results) {
+        const c = callsLive().find(x => x.id === r.slug);
+        if (!c) continue;
+        if (r.winner) { c.outcome = r.winner; touch(c); changed++; }
+        else if (now - c.end > 48 * 3600e3) { c.outcome = "VOID"; touch(c); changed++; }
+      }
+      if (changed) { save(); renderScorecard(); }
+    } catch { /* retry on next refresh */ } finally { resolving = false; }
+  }
+
+  function scoreRows(list) {
+    const done = list.filter(c => c.outcome === "UP" || c.outcome === "DOWN");
+    let wins = 0, exp = 0, pnl = 0, staked = 0;
+    for (const c of done) {
+      const p = c.side === "UP" ? c.fair : 1 - c.fair;
+      exp += p;
+      const won = c.outcome === c.side;
+      if (won) wins++;
+      if (c.price) { staked++; pnl += won ? 1 / c.price - 1 : -1; }
+    }
+    return { n: done.length, open: list.length - done.length - list.filter(c => c.outcome === "VOID").length, wins, exp, pnl, staked };
+  }
+
+  function renderScorecard() {
+    const calls = callsLive();
+    const groups = [
+      ["BUY calls", calls.filter(c => c.action === "BUY"), "edge ≥ 5 pts"],
+      ["LEAN calls", calls.filter(c => c.action === "LEAN"), "edge 2–5 pts"],
+      ["Your trades", calls.filter(c => c.taken), "marked “I took it”"],
+      ["All calls (likely side)", calls, "direction only"],
+    ];
+    const pnlTxt = r => r.staked ? `${r.pnl >= 0 ? "+" : ""}${r.pnl.toFixed(2)} per $1 × ${r.staked}` : "–";
+    let html = groups.map(([name, list, sub]) => {
+      const r = scoreRows(name.startsWith("All") ? list.map(c => ({ ...c, side: c.fair >= 0.5 ? "UP" : "DOWN", price: null })) : list);
+      const hit = r.n ? `${Math.round(r.wins / r.n * 100)}%` : "–";
+      const expP = r.n ? `${Math.round(r.exp / r.n * 100)}%` : "–";
+      return `<div class="score-cell">
+        <div class="score-cell__name">${name} <span class="hint">${sub}</span></div>
+        <div class="score-cell__big">${r.wins}/${r.n} <small>won</small></div>
+        <div class="score-cell__meta">Hit ${hit} vs expected ${expP}${name.startsWith("All") ? "" : ` · P&L ${pnlTxt(r)}`}${r.open ? ` · ${r.open} pending` : ""}</div>
+      </div>`;
+    }).join("");
+    // Brier score: model vs market on the same resolved calls (lower is better).
+    const done = calls.filter(c => (c.outcome === "UP" || c.outcome === "DOWN") && c.mkt != null);
+    if (done.length) {
+      const b = f => done.reduce((s, c) => s + (f(c) - (c.outcome === "UP" ? 1 : 0)) ** 2, 0) / done.length;
+      const bm = b(c => c.fair), bk = b(c => c.mkt);
+      html += `<div class="score-cell score-cell--wide"><div class="score-cell__name">Model vs market <span class="hint">Brier score, lower is better · ${done.length} calls</span></div>
+        <div class="score-cell__meta">Model <b>${bm.toFixed(3)}</b> · Market <b>${bk.toFixed(3)}</b> → ${bm < bk ? "model is sharper so far" : bm > bk ? "market is sharper so far" : "tied"}${done.length < 50 ? " (too few calls to trust yet)" : ""}</div></div>`;
+    }
+    $("#scoreGrid").innerHTML = html;
+    const recent = [...calls].filter(c => c.outcome).sort((a, b) => b.end - a.end).slice(0, 8);
+    $("#scoreRecent").innerHTML = recent.length ? recent.map(c => {
+      const ok = c.action === "SKIP" ? (c.fair >= 0.5 ? "UP" : "DOWN") === c.outcome : c.side === c.outcome;
+      return `<li><span class="${c.outcome === "VOID" ? "hint" : ok ? "is-ok" : "is-bad"}">${c.outcome === "VOID" ? "–" : ok ? "✓" : "✗"}</span> ${esc(c.text)} <span class="hint">→ ${c.outcome}${c.taken ? " · taken" : ""}</span></li>`;
+    }).join("") : `<li class="hint">No settled calls yet. Leave the tracker open and calls fill in as markets settle.</li>`;
+  }
 
   // ---- Form -----------------------------------------------------------------
   const dlg = $("#logDialog");
@@ -644,6 +745,11 @@ What's your call for this hour? 👇
       const d = DRAFTS.find(x => x.id === t.dataset.copy);
       try { await navigator.clipboard.writeText(d.text); toast("Copied, now fill the [brackets]"); }
       catch { toast("Copy blocked. Long-press the text to copy"); }
+      return;
+    }
+    if (t.dataset.took) {
+      const c = callsLive().find(x => x.id === t.dataset.took);
+      if (c) { c.taken = !c.taken; touch(c); save(); renderMarkets(); renderScorecard(); toast(c.taken ? "Marked as taken ✓" : "Unmarked"); }
       return;
     }
     if (t.dataset.mclog && mcData) {
