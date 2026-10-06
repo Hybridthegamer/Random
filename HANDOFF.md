@@ -32,7 +32,9 @@ Last updated: **Tue 6 Oct 2026, ~02:45 UTC**. Branch: `claude/eager-gauss-qyeyli
   - 3 Oct, 09:00 BTC hourly DOWN at 39¢: won (by $16).
   - BTC Daily DOWN and ETH Daily DOWN: both won.
   - BTC Weekly UP (strike $83,325.71, settled 5 Oct 03:59 UTC): **won** (resolved Up).
-  - **No W41 BTC weekly market is live yet** (6 Oct 02:40 UTC): `btc-weekly-price` still points at last week's resolved market. Re-check `?resolve`/`/markets/btc-weekly-price` before planning a weekly post.
+  - **No W41 "BTC Up or Down - Weekly" market exists** (6 Oct 03:20 UTC): `btc-weekly-price` still points at last week's resolved market and the expected next slug `btc-up-or-down-weekly-1791172800` is a 404. Re-check before planning a weekly post.
+  - **The only BTC weekly market this week is the one-touch ladder** "What price will Bitcoin hit October 5-11?" (group slug `what-price-will-bitcoin-hit-october-5-11-2026-1791173121609`; Binance 1m candle High/Low, 12:00 AM ET Mon to 11:59 PM ET Sun = 5 Oct 04:00 to 12 Oct 03:59 UTC). It is **not Up/Down, so assume it is not campaign-eligible** (a post about it is reach content, not one of the 4). Its metadata says it is mirrored from a rival market: **never name that source**. The official @trylimitlessfin post 2107108551974109491 is about it.
+  - **6 Oct analysis:** priced fairly. At the YES prices you would actually pay, every level is within ~3 points of fair (noise), books are thin with ~7% spreads. BTC is in a low-vol regime (~33% annualised); range so far 84,972-86,725. P(touch 88K) ~50%, P(touch 84K) ~68%, P(touch both) ~24%, P(leave the 84-88K box) ~96%. Call: no trade; content stance is "84K dip" because it is the closer target (~61% to be hit before 88K).
 - **Dashboard (6 Oct ~02:45 UTC, Mini App):** rank **#27**, score 43, 7 qualifying posts, "12 place(s) outside the top 40%" (so the top-40% cutoff is ~#15). W40: 9 of 10 submitted, **7 verified** (2 undecided/rejected, unknown which; the app says totals are a lower bound). W41: 1 of 10 submitted, 1 verified.
 - **Payout rule (confirmed by Franklin 6 Oct):** only the top 8 are eligible. At #27 he must climb **19 places**. Still unknown: the score at #8 and what drives score (post count vs engagement). Ask for a leaderboard screenshot.
 - **Why 2 W40 posts weren't verified:** Franklin shared his direct/share link instead of the market link, i.e. no `limitless.exchange/markets/`. **Always use `https://limitless.exchange/markets/<slug>?r=J3H8LSQBZG`** (his ref code). The tracker's rule check already fails links without `/markets/`, and the Post button appends `?r=CODE` once the code is entered (stored in the browser).
@@ -53,7 +55,7 @@ Plain HTML/CSS/JS with no build step, plus serverless functions. See `phase-1/RE
 - **Model scorecard:** calls are auto-logged into the synced doc (`calls`) and resolved later. It shows hit rate vs expected, P&L per $1, and Brier score vs the market.
 - **Post button:** writes X drafts from live market data (trimmed to 280, rule-checked) and opens the X post intent with the text filled in.
 - **Local dev:** `cd phase-1 && npx vercel dev`.
-- **Quick model check from the CLI:** `python3 tools/analyze.py`.
+- **Quick model check from the CLI:** `python3 tools/analyze.py` (Up/Down markets) and `python3 tools/hit_ladder.py` (weekly one-touch BTC ladder: fair touch probabilities vs market, edge at the real buy price, 84-88K style box stats).
 - **Known limits:**
   - It's a random-walk model, so edges under 5 points are noise.
   - Calls are only logged while the page is open.
