@@ -8,7 +8,7 @@ Last updated: **Tue 6 Oct 2026, ~02:45 UTC**. Branch: `claude/eager-gauss-qyeyli
 - **Network:** the environment needs **Full** network access (set by the user) to reach Binance, Coinbase, the Limitless API and `api.fxtwitter.com` (used to read X post stats).
 
 ## 1. Limitless "Crypto Up Down Markets Competition" (main goal)
-- **Window:** 10 Sep → **11 Oct 2026, ~19:06 UTC**. **Top 8 of 18** win a share of Limitless airdrop points.
+- **Window:** 10 Sep → **11 Oct 2026, ~19:06 UTC**. **Only the top 8** win a share of Limitless airdrop points (the dashboard's "top 40%" band is wider, but only 8 are eligible).
 - **Weeks:** W40 = 28 Sep–4 Oct (now closed). **W41 = 5–11 Oct (current).**
 - **Weekly rules:** a week needs **4 qualifying posts** to count, and **max 10** submitted per week.
 - **Rules for a post to count:**
@@ -34,7 +34,8 @@ Last updated: **Tue 6 Oct 2026, ~02:45 UTC**. Branch: `claude/eager-gauss-qyeyli
   - BTC Weekly UP (strike $83,325.71, settled 5 Oct 03:59 UTC): **won** (resolved Up).
   - **No W41 BTC weekly market is live yet** (6 Oct 02:40 UTC): `btc-weekly-price` still points at last week's resolved market. Re-check `?resolve`/`/markets/btc-weekly-price` before planning a weekly post.
 - **Dashboard (6 Oct ~02:45 UTC, Mini App):** rank **#27**, score 43, 7 qualifying posts, "12 place(s) outside the top 40%" (so the top-40% cutoff is ~#15). W40: 9 of 10 submitted, **7 verified** (2 undecided/rejected, unknown which; the app says totals are a lower bound). W41: 1 of 10 submitted, 1 verified.
-- **Conflict to resolve:** the note above says "top 8 of 18" win, but the dashboard talks about the top 40% with ~37 ambassadors. Ask Franklin which payout rule is current; it changes how aggressive to be.
+- **Payout rule (confirmed by Franklin 6 Oct):** only the top 8 are eligible. At #27 he must climb **19 places**. Still unknown: the score at #8 and what drives score (post count vs engagement). Ask for a leaderboard screenshot.
+- **Why 2 W40 posts weren't verified:** Franklin shared his direct/share link instead of the market link, i.e. no `limitless.exchange/markets/`. **Always use `https://limitless.exchange/markets/<slug>?r=J3H8LSQBZG`** (his ref code). The tracker's rule check already fails links without `/markets/`, and the Post button appends `?r=CODE` once the code is entered (stored in the browser).
 
 ## 2. The tracker site: `phase-1/` (Vercel project "phase-1", root dir `phase-1`)
 Plain HTML/CSS/JS with no build step, plus serverless functions. See `phase-1/README.md` for details.
@@ -81,6 +82,7 @@ Plain HTML/CSS/JS with no build step, plus serverless functions. See `phase-1/RE
 ## 4. User-generated market (UGM): waiting on Limitless
 - **Limitless says UGM creation is fixed (6 Oct).** Franklin has not retried yet. Create the market **once**; if it errors, check his profile for a duplicate before retrying. (Earlier it failed with "Network Error" then HTTP 429.)
 - **What the create flow actually is:** a **custom, self-resolved pool market**. You set opening odds and a liquidity amount, and **the user is the resolver** ("funds locked if not resolved").
+- **Create form as filled in 6 Oct:** Yes 20% / No 80%, **liquidity $25** (planned $10; his call), trading until Sun 11 Oct 17:00 (browser local time, presumably WAT = 16:00 UTC), resolving wallet `0xf675ea47ffb3e4744922174a5b5FbC77E3b5694B`. He ticked the box: if he doesn't resolve, funds stay locked and Limitless can't resolve it for him. **Set an alarm for Sun 11 Oct 18:00 UTC (19:00 WAT).** Not yet confirmed created.
 - **Decided market:** **"Will PH Lifestyle's launch post reach 500 likes by Oct 11, 2026, 18:00 UTC?"**
   - Post: https://x.com/danieldxdere/status/2106247857514688541
   - Likes: 35 (Oct 4) → 114 → 145 (Oct 5 16:00 UTC) → **189** (Oct 6 02:40 UTC, 31K views). Growth is slowing as the viral traffic decays, so 500 by Oct 11 looks unlikely (guess: ends ~250-320). Re-check before launch and open **lower** than the table below if it's still <250.
