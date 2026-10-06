@@ -4,7 +4,7 @@ Last updated: **Tue 6 Oct 2026, ~02:45 UTC**. Branch: `claude/eager-gauss-qyeyli
 
 ## Who / what
 - **User:** Franklin (@hybridthegeek), a Web3 content creator in Port Harcourt (WAT = UTC+1). Use the **`hybridthegeeks-voice`** skill for any X post written for him.
-- **His X Premium has expired**, so every post must be **≤ 280 characters as X counts them**. A URL counts as 23 and emoji/bullets count as 2. Check with `python3 tools/xcount.py <<< "text"`.
+- **His X Premium was renewed on 6 Oct**, so the 280-character cap is lifted (long posts allowed). Keep the hook and the question inside the first ~280 characters, because X folds longer posts behind "Show more". If Premium lapses again, posts must be **≤ 280 as X counts them**: a URL counts as 23 and emoji as 2; check with `python3 tools/xcount.py <<< "text"`.
 - **Network:** the environment needs **Full** network access (set by the user) to reach Binance, Coinbase, the Limitless API and `api.fxtwitter.com` (used to read X post stats).
 
 ## 1. Limitless "Crypto Up Down Markets Competition" (main goal)
