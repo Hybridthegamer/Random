@@ -61,8 +61,10 @@ function erf(x) { // Abramowitz–Stegun 7.1.26
 }
 
 function pUp(k, open, cur, mins, strict) {
-  const iv = mins <= 240 ? "1m" : mins <= 1440 ? "5m" : "1h";
-  const step = { "1m": 1, "5m": 5, "1h": 60 }[iv];
+  // Past ~2h, 3.5 days of 5m candles and 6h of 1m volatility are too short and too quiet: on 6 Oct they put ~92%
+  // on a +0.8% lead 7h from the close, where 14-120d hourly history and 7-30d volatility say ~80-86%.
+  const iv = mins <= 120 ? "1m" : "1h";
+  const step = { "1m": 1, "1h": 60 }[iv];
   const c = k[iv];
   const h = Math.max(1, Math.round(mins / step));
   const need = Math.log(open / cur);
@@ -75,7 +77,15 @@ function pUp(k, open, cur, mins, strict) {
   const m1 = k["1m"].slice(-360);
   let ss = 0;
   for (let i = 1; i < m1.length; i++) ss += Math.log(m1[i] / m1[i - 1]) ** 2;
-  const sd = Math.sqrt(ss / Math.max(1, m1.length - 1));
+  let sd = Math.sqrt(ss / Math.max(1, m1.length - 1));
+  if (mins > 120) {
+    // blend the 6h figure with 7-day hourly volatility (per minute) so one quiet morning does not set the horizon
+    const hc = k["1h"].slice(-169);
+    let s2 = 0;
+    for (let i = 1; i < hc.length; i++) s2 += Math.log(hc[i] / hc[i - 1]) ** 2;
+    const sdH = Math.sqrt(s2 / Math.max(1, hc.length - 1)) / Math.sqrt(60);
+    if (sdH) sd = sd ? (sd + sdH) / 2 : sdH;
+  }
   const norm = sd ? phi(-need / (sd * Math.sqrt(mins))) : 0.5;
   return { fair: (emp + norm) / 2, emp, norm };
 }

@@ -48,8 +48,8 @@ The **Market check** panel calls `api/markets.js`, a serverless function that co
 - spot prices and candles from Binance (`data-api.binance.vision`) and Coinbase
 
 For each market, it estimates **the chance of Up** by averaging two drift-free models:
-1. recent historical moves over the same time window, mirrored so there's no trend bias
-2. a normal-distribution model using volatility from the last 6 hours
+1. historical moves over the same time window, mirrored so there's no trend bias (1-minute candles up to 2 hours ahead, 41 days of hourly candles beyond that)
+2. a normal-distribution model using volatility from the last 6 hours (beyond 2 hours ahead it is averaged with 7-day hourly volatility, so one quiet morning cannot set a whole day's range)
 
 For 5m, 15m and hourly markets, this estimate is then adjusted by the **reversal pattern**: how often a candle closed Up after the previous candle closed the way the one before this market did. The adjustment counts fully at the start of the period and fades as time runs out. The 5m and 15m markets settle on a Chainlink price that sits a few dollars away from exchange prices. The function measures that gap from the Binance minute just before each market opens and corrects for it.
 

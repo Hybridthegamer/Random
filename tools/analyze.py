@@ -29,7 +29,8 @@ def p_up(asset, open_, cur, mins, strict=False):
     # Two drift-free estimates of P(final >= open), averaged:
     #  (a) empirical: symmetrised historical moves over the same horizon (longer lookback, fat tails)
     #  (b) normal model using volatility from the most recent window (current regime)
-    iv, step = ('1m', 1) if mins <= 240 else ('5m', 5) if mins <= 1440 else ('1h', 60)
+    # Past ~2h, 3.5 days of 5m candles and 6h of 1m vol are too short/quiet (6 Oct: ~92% vs ~80-86% on longer data).
+    iv, step = ('1m', 1) if mins <= 120 else ('1h', 60)
     c = [r[4] for r in klines(asset, iv)]
     h = max(1, round(mins / step))
     lr = [math.log(c[i + h] / c[i]) for i in range(len(c) - h)]
@@ -38,6 +39,10 @@ def p_up(asset, open_, cur, mins, strict=False):
     emp = sum((x > need) if strict else (x >= need) for x in lr) / len(lr)
     m1 = [r[4] for r in klines(asset, '1m')][-360:]     # last 6h of 1m returns
     sd = (sum(math.log(m1[i + 1] / m1[i]) ** 2 for i in range(len(m1) - 1)) / (len(m1) - 1)) ** 0.5
+    if mins > 120:                                       # blend 6h vol with 7-day hourly vol (per minute)
+        hc = [r[4] for r in klines(asset, '1h')][-169:]
+        sdh = (sum(math.log(hc[i + 1] / hc[i]) ** 2 for i in range(len(hc) - 1)) / (len(hc) - 1)) ** 0.5 / math.sqrt(60)
+        sd = (sd + sdh) / 2 if sd else sdh
     norm = phi(-need / (sd * math.sqrt(mins))) if sd else 0.5
     return (emp + norm) / 2, (emp, norm)
 def end_ms(m, tf):
