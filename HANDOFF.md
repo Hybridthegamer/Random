@@ -33,7 +33,8 @@ Last updated: **Tue 6 Oct 2026, ~02:45 UTC**. Branch: `claude/eager-gauss-qyeyli
   - BTC Daily DOWN and ETH Daily DOWN: both won.
   - BTC Weekly UP (strike $83,325.71, settled 5 Oct 03:59 UTC): **won** (resolved Up).
   - **No W41 BTC weekly market is live yet** (6 Oct 02:40 UTC): `btc-weekly-price` still points at last week's resolved market. Re-check `?resolve`/`/markets/btc-weekly-price` before planning a weekly post.
-- **Unknown:** how many W40 posts were verified, and his current rank. Ask him.
+- **Dashboard (6 Oct ~02:45 UTC, Mini App):** rank **#27**, score 43, 7 qualifying posts, "12 place(s) outside the top 40%" (so the top-40% cutoff is ~#15). W40: 9 of 10 submitted, **7 verified** (2 undecided/rejected, unknown which; the app says totals are a lower bound). W41: 1 of 10 submitted, 1 verified.
+- **Conflict to resolve:** the note above says "top 8 of 18" win, but the dashboard talks about the top 40% with ~37 ambassadors. Ask Franklin which payout rule is current; it changes how aggressive to be.
 
 ## 2. The tracker site: `phase-1/` (Vercel project "phase-1", root dir `phase-1`)
 Plain HTML/CSS/JS with no build step, plus serverless functions. See `phase-1/README.md` for details.
@@ -78,17 +79,19 @@ Plain HTML/CSS/JS with no build step, plus serverless functions. See `phase-1/RE
   Afterwards, reply to people tagging their cities for the first hour.
 
 ## 4. User-generated market (UGM): waiting on Limitless
-- **Creation fails** with "Network Error", then **HTTP 429** (rate limit / daily cap). **The user reported it to the Limitless team, who are fixing it.**
+- **Limitless says UGM creation is fixed (6 Oct).** Franklin has not retried yet. Create the market **once**; if it errors, check his profile for a duplicate before retrying. (Earlier it failed with "Network Error" then HTTP 429.)
 - **What the create flow actually is:** a **custom, self-resolved pool market**. You set opening odds and a liquidity amount, and **the user is the resolver** ("funds locked if not resolved").
 - **Decided market:** **"Will PH Lifestyle's launch post reach 500 likes by Oct 11, 2026, 18:00 UTC?"**
   - Post: https://x.com/danieldxdere/status/2106247857514688541
   - Likes: 35 (Oct 4) → 114 → 145 (Oct 5 16:00 UTC) → **189** (Oct 6 02:40 UTC, 31K views). Growth is slowing as the viral traffic decays, so 500 by Oct 11 looks unlikely (guess: ends ~250-320). Re-check before launch and open **lower** than the table below if it's still <250.
-  - **Opening odds by like count at launch:** ~25–30% YES if 150–200 likes, ~40% if >250.
+  - **Opening odds (revised 6 Oct):** need +311 likes in ~135h from 189. The last 10.7h ran ~4/hr; if that rate decays (half-life 24–48h) it ends ~330–430, and 500 needs a half-life of ~3 days or a new spike. Open at **~20% YES**. A 400 threshold would be near a coin flip if a more balanced market is wanted. Re-check the count right before creating.
+  - **Decided against** a market about the Lagos Life / PH-in-Lagos-Life update: subjective, unresolvable by a number, and it points at a third party's work.
+  - **Trading ends:** consider 16:00 UTC (reading still at 18:00 UTC) so informed late traders can't drain a $10 pool.
   - **Liquidity:** $10 (user has ~$20 total).
   - **Trading ends:** Oct 11, 19:00 WAT (18:00 UTC).
   - **Resolution text** (update the reference count on launch day):
     ```
-    Resolves YES if @danieldxdere's PH Lifestyle post (x.com/danieldxdere/status/2106247857514688541) shows 500+ likes at or before Oct 11, 2026, 18:00 UTC. Otherwise NO. Source: like count displayed on X, screenshotted at resolution. Reference: <N> likes on <date/time> UTC.
+    Resolves YES if the like count shown on @danieldxdere's PH Lifestyle launch post (x.com/danieldxdere/status/2106247857514688541) is 500 or more at 18:00 UTC on Oct 11, 2026. Otherwise NO. Source: the public like count on X, screenshotted at 18:00 UTC and cross-checked against a second source. If the post is deleted or hidden before then, it resolves NO. Reference: <N> likes at <time> UTC on <date>.
     ```
   - **Launch post:** post as a reply under the viral post. Update the like count first.
     ```
@@ -102,8 +105,8 @@ Plain HTML/CSS/JS with no build step, plus serverless functions. See `phase-1/RE
 
     (Full disclosure: Team PH 💚)
     ```
-    "800K" is now out of date. Use "1M+".
-  - **Image:** `ugm-art/ph-500-likes.png`. Its ring shows 113/500; re-render from the `.html` if needed.
+    Use "1M+" instead of "800K" (viral post is at 1.38M views). Fill in the live like count.
+  - **Image:** `ugm-art/ph-500-likes.png`. Ring re-rendered 6 Oct at 189/500. To re-render: set `stroke-dasharray` to `likes/500*282.74` in the `.html` (circumference of r=45), then screenshot the `#art` element at 1024x1024 with Playwright (`/opt/node-tools`, chromium at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`).
   - **Other images:**
     - `ph-vs-lagos.png` is for the PH vs Lagos market, which is effectively dead (Lagos has 15K+ likes).
     - `ph-1500-likes.png` is unused.
