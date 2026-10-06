@@ -173,10 +173,11 @@ export default async function handler(req, res) {
 
     const rows = [];
     for (const m of markets) {
-      const g = /^(BTC|ETH|SOL) Up or Down/.exec(m.title || "");
+      // Limitless titles Solana markets "Solana Up or Down ...", not "SOL Up or Down ...".
+      const g = /^(BTC|ETH|SOL|Solana) Up or Down/.exec(m.title || "");
       const tf = tfOf(m.title || "");
-      if (!g || !tf || !ELIGIBLE.has(`${g[1]} ${tf}`)) continue;
-      const asset = g[1];
+      const asset = g && (g[1] === "Solana" ? "SOL" : g[1]);
+      if (!g || !tf || !ELIGIBLE.has(`${asset} ${tf}`)) continue;
       const open = openPriceOf(m);
       const end = endOf(m, tf);
       if (!open || !(end > now)) continue;

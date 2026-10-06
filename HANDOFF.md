@@ -1,6 +1,6 @@
 # Handoff: Limitless ambassador work (Hybridthegeek)
 
-Last updated: **Mon 5 Oct 2026, ~16:00 UTC**. Branch: `ccr-70f53186-90dxlk` (all work is pushed).
+Last updated: **Tue 6 Oct 2026, ~02:45 UTC**. Branch: `claude/eager-gauss-qyeyli` (continues `ccr-70f53186-90dxlk`; all work is pushed).
 
 ## Who / what
 - **User:** Franklin (@hybridthegeek), a Web3 content creator in Port Harcourt (WAT = UTC+1). Use the **`hybridthegeeks-voice`** skill for any X post written for him.
@@ -31,7 +31,8 @@ Last updated: **Mon 5 Oct 2026, ~16:00 UTC**. Branch: `ccr-70f53186-90dxlk` (all
   - 3 Oct, 07:00 BTC hourly UP: lost (by $26).
   - 3 Oct, 09:00 BTC hourly DOWN at 39¢: won (by $16).
   - BTC Daily DOWN and ETH Daily DOWN: both won.
-  - BTC Weekly UP (strike $83,325.71, settled 5 Oct 03:59 UTC): **result not checked yet.**
+  - BTC Weekly UP (strike $83,325.71, settled 5 Oct 03:59 UTC): **won** (resolved Up).
+  - **No W41 BTC weekly market is live yet** (6 Oct 02:40 UTC): `btc-weekly-price` still points at last week's resolved market. Re-check `?resolve`/`/markets/btc-weekly-price` before planning a weekly post.
 - **Unknown:** how many W40 posts were verified, and his current rank. Ask him.
 
 ## 2. The tracker site: `phase-1/` (Vercel project "phase-1", root dir `phase-1`)
@@ -58,11 +59,11 @@ Plain HTML/CSS/JS with no build step, plus serverless functions. See `phase-1/RE
 
 ## 3. Viral post + PH Lifestyle (side project)
 - **@danieldxdere** (the user's friend) built **PH Lifestyle** (https://www.phlifestyle.fun/), a Sims-style Port Harcourt game inspired by @Shalom_HeyEliy's "Lagos Lifestyle".
-- **The user's post** https://x.com/hybridthegeek/status/2106824297800970666 went viral: about **1.06M views, 1,972 likes, 1,361 bookmarks** (5 Oct 16:00 UTC). Most replies drag him, which he's fine with.
+- **The user's post** https://x.com/hybridthegeek/status/2106824297800970666 went viral: about **1.38M views, 2,330 likes, 1,563 bookmarks, 432 quotes** (6 Oct 02:40 UTC). Most replies drag him, which he's fine with.
 - **Done:**
   - A pinned credit reply under the viral post (Etche/Ahoada/Elele version).
   - Advised pinning the viral post to his profile.
-- **Next:** post this follow-up as a **quote of the viral post**, ideally in the evening WAT. Final version (263/280):
+- **Follow-up posted** 5 Oct 16:14 UTC as a quote of the viral post (https://x.com/hybridthegeek/status/2107142300761555430). Underperformed the original: **2.4K views, 38 likes, 13 replies, 2 quotes** at 6 Oct 02:40 UTC. Remaining job: reply to people tagging their cities. Text posted (263/280):
   ```
   Crazy scenes 😂 1 million of you came to drag me for one PH post 😭
 
@@ -81,7 +82,7 @@ Plain HTML/CSS/JS with no build step, plus serverless functions. See `phase-1/RE
 - **What the create flow actually is:** a **custom, self-resolved pool market**. You set opening odds and a liquidity amount, and **the user is the resolver** ("funds locked if not resolved").
 - **Decided market:** **"Will PH Lifestyle's launch post reach 500 likes by Oct 11, 2026, 18:00 UTC?"**
   - Post: https://x.com/danieldxdere/status/2106247857514688541
-  - Likes: 35 (Oct 4) → 114 → **145** (Oct 5 16:00 UTC)
+  - Likes: 35 (Oct 4) → 114 → 145 (Oct 5 16:00 UTC) → **189** (Oct 6 02:40 UTC, 31K views). Growth is slowing as the viral traffic decays, so 500 by Oct 11 looks unlikely (guess: ends ~250-320). Re-check before launch and open **lower** than the table below if it's still <250.
   - **Opening odds by like count at launch:** ~25–30% YES if 150–200 likes, ~40% if >250.
   - **Liquidity:** $10 (user has ~$20 total).
   - **Trading ends:** Oct 11, 19:00 WAT (18:00 UTC).

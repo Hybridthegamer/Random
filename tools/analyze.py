@@ -15,8 +15,8 @@ while True:
     p += 1
 mk = []
 for m in allm:
-    g = re.match(r'^(BTC|ETH|SOL) Up or Down', m['title'])
-    if g and (g[1], tf_of(m['title'])) in ELIG: mk.append(m)
+    g = re.match(r'^(BTC|ETH|SOL|Solana) Up or Down', m['title'])   # Limitless titles SOL markets "Solana ..."
+    if g and ('SOL' if g[1] == 'Solana' else g[1], tf_of(m['title'])) in ELIG: mk.append(m)
 kl = {}
 def klines(sym, iv, n=1000):
     k = (sym, iv)
@@ -47,7 +47,7 @@ def end_ms(m, tf):
     return s + {'5m': 300e3, '15m': 900e3, '1h': 3600e3}[tf]
 rows = []
 for m in mk:
-    a = m['title'][:3]; tf = tf_of(m['title'])
+    a = 'SOL' if m['title'].startswith('Solana') else m['title'][:3]; tf = tf_of(m['title'])
     meta = m.get('metadata') or {}
     op = meta.get('openPrice')
     if not op:
