@@ -48,7 +48,7 @@ Plain HTML/CSS/JS with no build step, plus serverless functions. See `phase-1/RE
   - The Upstash env prefix can be `KV_` or `STORAGE_`.
   - **The user started the Upstash setup in Vercel. It's unconfirmed whether `SYNC_PASSPHRASE` is set and the site redeployed.**
 - **Market check** (`api/markets.js`): live campaign markets from the Limitless API, plus Binance/Coinbase data.
-  - **Fair P(Up)** = average of (symmetrised historical moves over the same window) and (normal model using 6-hour volatility), then nudged by the **reversal prior** (P(Up) given the previous candle's direction) for 5m/15m/1h, weighted by the fraction of time left.
+  - **Fair P(Up)** = average of (symmetrised historical moves over the same window) and (normal model using 6-hour volatility; beyond 2h ahead: hourly-candle history and 6h vol averaged with 7-day hourly vol, changed 6 Oct because the old short windows put ~92% on daily leads that longer data prices at ~80-86%), then nudged by the **reversal prior** (P(Up) given the previous candle's direction) for 5m/15m/1h, weighted by the fraction of time left.
   - **Basis correction:** 5m/15m adjust for the Chainlink-vs-Binance gap, measured from the Binance minute before the market opens.
   - **One-shot calls:** BUY (edge ≥ 5 points) / LEAN (2–5) / SKIP.
   - `?resolve=slug,...` returns market winners.
@@ -60,6 +60,12 @@ Plain HTML/CSS/JS with no build step, plus serverless functions. See `phase-1/RE
   - It's a random-walk model, so edges under 5 points are noise.
   - Calls are only logged while the page is open.
   - 5m markets often have thin order books.
+
+### W41 plan (Market check run 6 Oct 08:47 UTC; Franklin has 1 of 4 verified, cap 10, week ends 11 Oct 19:06 UTC)
+- After the model fix, **nothing on the board is a real BUY**: dailies BTC 87.7% fair vs 84.3% market, ETH 80.8 vs 82.5, SOL 82.3 vs 83.0 (edges -1.7..+1.5). Only the BTC 15m showed 9-12 points, with 13 minutes left and thin volume.
+- Dailies open at 16:00 UTC (noon ET) and settle 24h later. Posts only need to be honest and well-formed, so pick markets by timing and variety, not by edge.
+- Suggested spread: BTC Daily now (UP, +$742 lead) -> new dailies at 16:00 UTC (17:00 WAT) -> an hourly during the Nigerian evening / US session -> a 15m around the US open -> final daily Sat 10 Oct 16:00 UTC. Keep 1-2 spare for rejections. Every post: original/quote, tags @trylimitless, link `https://limitless.exchange/markets/<slug>?r=J3H8LSQBZG`, no rival names, paste into the tracker's rule check first.
+- BTC Up/Down Weekly still not created (404). The BTC "hit" ladder is not a campaign market.
 
 ## 3. Viral post + PH Lifestyle (side project)
 - **@danieldxdere** (the user's friend) built **PH Lifestyle** (https://www.phlifestyle.fun/), a Sims-style Port Harcourt game inspired by @Shalom_HeyEliy's "Lagos Lifestyle".
