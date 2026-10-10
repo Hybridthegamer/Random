@@ -7,6 +7,7 @@ const DATA = process.argv[2], OUT = process.argv[3] || __dirname;
 const rd = f => fs.readFileSync(path.join(DATA, f), 'utf8');
 const J = f => JSON.parse(rd(f));
 const NOW = Number(rd('now.txt')) * 1000;
+const SET = process.env.SET || 'sat'; // 'sat' = first set of cards (10 Oct morning dailies); 'sun' = the dailies that open 10 Oct 16:00 UTC and settle 11 Oct 16:00 UTC
 
 // ---------- palette (dark surface; blue/red = diverging pair, validated with validate_palette.js) ----------
 const C = { surface: '#1a1a19', panel: '#222220', grid: '#2c2c2a', axis: '#46453f', text: '#f0efec', text2: '#c3c2b7',
@@ -32,7 +33,7 @@ const spot = { BTC: c1h.BTC.at(-1), ETH: c1h.ETH.at(-1), SOL: c1h.SOL.at(-1) };
 const dp = rd('daily_prices.jsonl').trim().split('\n').map(JSON.parse);
 const M = { ETH: dp[0], BTC: dp[1], SOL: dp[2] };
 for (const a of Object.keys(M)) { M[a].strike = +M[a].open; M[a].up = M[a].buy[0] * 100; M[a].dn = M[a].buy[1] * 100; }
-const DAILY_END = 1791648000000, hLeft = (DAILY_END - NOW) / 3.6e6;
+const DAILY_END = SET === 'sun' ? 1791734400000 : 1791648000000, hLeft = (DAILY_END - NOW) / 3.6e6;
 function fair(a) {
   const r = lr(c1h[a]), s7 = rms(r), s36 = rms(r.slice(-36)), s24 = rms(r.slice(-24)), need = Math.log(M[a].strike / spot[a]);
   const pu = s => phi(-need / (s * Math.sqrt(hLeft)));
@@ -40,7 +41,7 @@ function fair(a) {
   return { s7, s24, s36, lo: Math.min(...p), hi: Math.max(...p), mid: (p[0] + p[1]) / 2, leadPct: (spot[a] / M[a].strike - 1) * 100 };
 }
 const F = { ETH: fair('ETH'), BTC: fair('BTC'), SOL: fair('SOL') };
-const hourlyPct = a => rms(lr(c1h[a].slice(-25))) * 100;
+const hourlyPct = a => rms(lr(c1h[a].slice(-25))) * 100, hourly7Pct = a => rms(lr(c1h[a])) * 100;
 const wk = { open: 86085, hi: Math.max(...btcW.map(k => k.h)), lo: Math.min(...btcW.map(k => k.l)) };
 const wkPct = (spot.BTC / wk.open - 1) * 100;
 const w24 = klines('btc1h_168.json').slice(-24), box24 = (Math.max(...w24.map(k => k.h)) / Math.min(...w24.map(k => k.l)) - 1) * 100;
@@ -51,8 +52,8 @@ const rB = lr(c1h.BTC), tCalm = [touch(rms(rB.slice(-36))), touch(rms(rB.slice(-
 let tFlushTool = NaN; try { const m = rd('ladder.txt').match(/↓80,000[^\n]*\|\s*([\d.]+)%\s+([\d.]+)%\s+([\d.]+)%\s+([\d.]+)%\s+([\d.]+)%/); if (m) tFlushTool = +m[5]; } catch (e) {}
 const flush = [tFlush7, isNaN(tFlushTool) ? tFlush7 * 1.3 : Math.max(tFlushTool, tFlush7)];
 const calm = [Math.min(...tCalm), Math.max(...tCalm)];
-const NUM = { stamp, hLeft, hTouch, spot, M, F, hourly: { BTC: hourlyPct('BTC'), ETH: hourlyPct('ETH'), SOL: hourlyPct('SOL') }, wk, wkPct, box24, ladYes, calm, flush };
-fs.writeFileSync(path.join(OUT, 'numbers.json'), JSON.stringify(NUM, null, 1));
+const NUM = { stamp, hLeft, hTouch, spot, M, F, hourly: { BTC: hourlyPct('BTC'), ETH: hourlyPct('ETH'), SOL: hourlyPct('SOL') }, hourly7: { BTC: hourly7Pct('BTC'), ETH: hourly7Pct('ETH'), SOL: hourly7Pct('SOL') }, wk, wkPct, box24, ladYes, calm, flush };
+fs.writeFileSync(path.join(OUT, SET === 'sat' ? 'numbers.json' : `numbers-${SET}.json`), JSON.stringify(NUM, null, 1));
 
 // ---------- components ----------
 function lineChart(o) {
@@ -116,7 +117,7 @@ const wat = h => { const x = ((h % 24) + 24) % 24, ap = x >= 12 ? 'pm' : 'am', y
 const cards = {};
 
 // ---------- A: ETH Daily ----------
-{
+if (SET === 'sat') {
   const T0 = 1791561600000, T1 = DAILY_END, strike = M.ETH.strike, pts = eth5.map(k => [k.t, k.c]);
   const lo = Math.min(...pts.map(p => p[1]), strike), hi = Math.max(...pts.map(p => p[1]), strike), pad = (hi - lo) * .16;
   const y0 = Math.floor((lo - pad) / 10) * 10, y1 = Math.ceil((hi + pad) / 10) * 10, yt = []; for (let v = y0; v <= y1; v += 10) yt.push(v);
@@ -136,7 +137,7 @@ const cards = {};
 }
 
 // ---------- B: BTC Daily ----------
-{
+if (SET === 'sat') {
   const T0 = btcW[0].t, T1 = NOW + hrs(11), strike = M.BTC.strike, pts = btcW.map(k => [k.t, k.c]);
   const y0 = 80000, y1 = 87000, yt = [80000, 81000, 82000, 83000, 84000, 85000, 86000, 87000];
   const xt = [[T0, 'Mon']]; ['Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach((d, i) => xt.push([1791172800000 + hrs(19) + i * hrs(24), d]));
@@ -151,7 +152,7 @@ const cards = {};
 }
 
 // ---------- C: SOL Daily ----------
-{
+if (SET === 'sat') {
   const bars = [['BTC', NUM.hourly.BTC, C.neutral], ['ETH', NUM.hourly.ETH, C.neutral], ['SOL', NUM.hourly.SOL, C.violet]];
   const W = 956, H = 532, x0 = 190, xMax = Math.ceil(NUM.hourly.SOL * 10 + 1) / 10 + .1, X = lin(0, xMax, x0, W - 60);
   let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">` + T(0, 34, 'Typical move per hour, last 24 hours', { size: 24, weight: 800, fill: C.text });
@@ -170,7 +171,7 @@ const cards = {};
 }
 
 // ---------- F: BTC weekly ladder, retest 80K ----------
-{
+if (SET === 'sat') {
   const T0 = btcW[0].t, T1 = LADDER_END + 60000, pts = btcW.map(k => [k.t, k.c]), nowP = pts.at(-1);
   const y0 = 79500, y1 = 87500, yt = [80000, 81000, 82000, 83000, 84000, 85000, 86000, 87000], lowK = btcW.reduce((a, k) => k.l < a.l ? k : a);
   const xt = [[T0, 'Mon']]; ['Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach((d, i) => xt.push([1791172800000 + hrs(19) + i * hrs(24), d]));
@@ -195,7 +196,7 @@ const cards = {};
 }
 
 // ---------- D: the last daily that settles inside the window ----------
-{
+if (SET === 'sat') {
   const t0 = Date.UTC(2026, 9, 10, 6), t1 = Date.UTC(2026, 9, 12, 6), W = 956, H = 532, X = lin(t0, t1, 64, W - 64);
   const at = (d, h, m = 0) => Date.UTC(2026, 9, d, h, m), dn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><defs><pattern id="h" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="14" height="14" fill="${C.panel}"/><line x1="0" y1="0" x2="0" y2="14" stroke="${C.axis}" stroke-width="5"/></pattern></defs>`;
@@ -227,10 +228,10 @@ const cards = {};
 // ---------- E: hourly cheat sheet ----------
 {
   const mins = [60, 30, 15, 5], assets = ['BTC', 'ETH', 'SOL'], step = v => v < .1 ? ['#184f95', '#fff'] : v < .2 ? ['#256abf', '#fff'] : v < .35 ? ['#3987e5', '#0b0b0b'] : ['#6da7ec', '#0b0b0b'];
-  let g = `<div style="font-size:24px;font-weight:800;margin-bottom:14px">Typical move left in the hour (last 24 hours)</div><div style="display:grid;grid-template-columns:110px repeat(4,1fr);gap:10px;width:940px">` +
+  let g = `<div style="font-size:24px;font-weight:800;margin-bottom:14px">Typical move left in the hour (last 7 days)</div><div style="display:grid;grid-template-columns:110px repeat(4,1fr);gap:10px;width:940px">` +
     `<div></div>` + mins.map(m => `<div style="font-size:21px;font-weight:700;color:${C.text2};text-align:center;padding-bottom:4px">${m} min left</div>`).join('');
-  assets.forEach(a => { g += `<div style="font-size:34px;font-weight:800;display:flex;align-items:center">${a}</div>`; mins.forEach(m => { const v = NUM.hourly[a] * Math.sqrt(m / 60), [bg, fg] = step(v); g += `<div style="background:${bg};color:${fg};border-radius:14px;height:112px;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:800">${f0(v, 2)}%</div>`; }); });
-  g += `</div><div style="margin-top:22px;font-size:21px;color:${C.text2};width:940px;line-height:1.35">Typical move = the last 24 hours' average hourly move, scaled by the square root of the time left. Your lead is the gap between price and strike, as a % of the strike.</div>`;
+  assets.forEach(a => { g += `<div style="font-size:34px;font-weight:800;display:flex;align-items:center">${a}</div>`; mins.forEach(m => { const v = NUM.hourly7[a] * Math.sqrt(m / 60), [bg, fg] = step(v); g += `<div style="background:${bg};color:${fg};border-radius:14px;height:112px;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:800">${f0(v, 2)}%</div>`; }); });
+  g += `</div><div style="margin-top:22px;font-size:21px;color:${C.text2};width:940px;line-height:1.35">Typical move = the last 7 days' average hourly move, scaled by the square root of the time left. Your lead is the gap between price and strike, as a % of the strike.</div>`;
   const rows = [['Lead = ½ the typical move', 69], ['Lead = 1× the typical move', 84], ['Lead = 2× the typical move', 98]];
   let b = '<svg width="420" height="300" viewBox="0 0 420 300">'; rows.forEach(([l, p], i) => { const y = i * 100; b += T(0, y + 22, l, { size: 21, weight: 700, fill: C.text }) + `<path d="M0 ${y + 40}H${p * 3.1 - 8}a8 8 0 0 1 8 8v22a8 8 0 0 1 -8 8H0Z" fill="${C.text2}" opacity=".85"/>` + T(p * 3.1 + 12, y + 70, p + '%', { size: 30, weight: 800, fill: C.text }); }); b += '</svg>';
   cards.E = card({ tag: 'Hourly markets · Cheat sheet', h1: 'Is your lead bigger than the move left?',
@@ -240,7 +241,7 @@ const cards = {};
 }
 
 // ---------- QT: Packs ----------
-{
+if (SET === 'sat') {
   const W = 956, H = 532; let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
   const leg = (x, y, ok, n) => `<rect x="${x}" y="${y}" width="150" height="86" rx="16" fill="${C.panel}" stroke="${C.axis}" stroke-width="2"/>` + T(x + 18, y + 34, 'Leg ' + n, { size: 20, weight: 700, fill: C.text2 }) + `<circle cx="${x + 112}" cy="${y + 43}" r="22" fill="${ok ? C.good : C.crit}"/><path d="${ok ? `M${x + 102} ${y + 43}l8 8l14 -15` : `M${x + 103} ${y + 34}l18 18M${x + 121} ${y + 34}l-18 18`}" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
   const row = (y, oks, res, sub) => oks.map((o, i) => leg(i * 178, y, o, i + 1)).join('') + `<path d="M${3 * 178 + 2} ${y + 43}h40m-12 -12l12 12l-12 12" stroke="${C.muted}" stroke-width="4" fill="none" stroke-linecap="round"/>` + T(3 * 178 + 62, y + 40, res, { size: 30, weight: 800, fill: C.text }) + T(3 * 178 + 62, y + 70, sub, { size: 20, fill: C.text2 });
@@ -260,8 +261,51 @@ const cards = {};
     foot: 'Pack rules from the Limitless docs. Challenge dates (Oct 7 to 28) per the campaign post: check the official post.' });
 }
 
+// ---------- SUN set: the dailies that open Sat 16:00 UTC and settle Sun 16:00 UTC ----------
+if (SET === 'sun') {
+  const dn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  // ---- C2: SOL daily, long way to go ----
+  {
+    const bars = ['BTC', 'ETH', 'SOL'].map(a => [a, NUM.hourly[a] * Math.sqrt(hLeft), a === 'SOL' ? C.violet : C.neutral]);
+    const W = 956, H = 532, x0 = 190, xMax = Math.ceil(Math.max(...bars.map(b => b[1])) * 2 + 1) / 2, X = lin(0, xMax, x0, W - 60);
+    let sv = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">' + T(0, 34, 'Typical move in the ' + f0(hLeft) + ' hours left (last-24h volatility)', { size: 24, weight: 800, fill: C.text });
+    for (let v = 0; v <= xMax + .001; v += .5) sv += '<line x1="' + X(v) + '" x2="' + X(v) + '" y1="64" y2="' + (H - 56) + '" stroke="' + C.grid + '" stroke-width="1.5"/>' + T(X(v), H - 24, f0(v, 1) + '%', { anchor: 'middle', size: 19 });
+    bars.forEach(([n, v, col], i) => { const y = 100 + i * 120;
+      sv += T(0, y + 48, n, { size: 34, weight: 800, fill: C.text }) + '<path d="M' + x0 + ' ' + (y + 6) + 'H' + (X(v) - 8) + 'a8 8 0 0 1 8 8v52a8 8 0 0 1 -8 8H' + x0 + 'Z" fill="' + col + '"/>' + T(X(v) + 14, y + 52, f0(v, 1) + '%', { size: 30, weight: 800, fill: C.text }); });
+    const gap = Math.abs(F.SOL.leadPct), lx = X(gap), ys = 100 + 2 * 120;
+    sv += '<line x1="' + lx + '" x2="' + lx + '" y1="' + (ys - 12) + '" y2="' + (ys + 92) + '" stroke="' + C.text + '" stroke-width="5" stroke-linecap="round"/>' + T(lx + 14, ys + 104, "SOL's gap to its strike: " + f0(gap, 2) + '%', { size: 22, weight: 700, fill: C.text, halo: 1 }) + '</svg>';
+    const sgap = M.SOL.up + M.SOL.dn - 100, dlt = spot.SOL - M.SOL.strike;
+    cards.C2 = card({ tag: 'SOL · Daily Up/Down', h1: f0(hLeft) + ' hours is a long time for SOL.',
+      sub: 'SOL is $' + f0(Math.abs(dlt), 2) + (dlt < 0 ? ' under' : ' over') + ' its strike. A typical hour moves it ~$' + f0(spot.SOL * NUM.hourly.SOL / 100, 2) + ', so a typical day moves it ~$' + f0(spot.SOL * NUM.hourly.SOL / 100 * Math.sqrt(24), 1) + '.',
+      left: sv, panel: dailyPanel('SOL', '$' + f0((M.SOL.up + M.SOL.dn) / 100, 2), 'to hold both sides of a $1 payout. That ' + f0(sgap) + '¢ gap (spread, slippage) is the real opponent.'),
+      foot: 'Settles Sun 12pm ET (5pm WAT) · Binance SOL/USDT 1-min close · Data ' + stamp });
+  }
+  // ---- D2: BTC, the last daily that settles inside the window ----
+  {
+    const T0 = Date.UTC(2026, 9, 9, 16), T1 = Date.UTC(2026, 9, 11, 21), S0 = Date.UTC(2026, 9, 10, 16), S1 = DAILY_END, CUT = Date.UTC(2026, 9, 11, 19, 6), strike = M.BTC.strike, prev = 82810;
+    const pts = klines('btc1h_168.json').filter(k => k.t >= T0 && k.t + 36e5 <= NOW).map(k => [k.t + 36e5, k.c]); pts.push([NOW, spot.BTC]);
+    const lo = Math.min(...pts.map(q => q[1]), prev), hi = Math.max(...pts.map(q => q[1])), y0 = Math.floor((lo - 150) / 500) * 500, y1 = Math.ceil((hi + 150) / 500) * 500, yt = []; for (let v = y0; v <= y1; v += 500) yt.push(v);
+    const xt = []; for (let t = T0; t <= T1; t += hrs(12)) { const d = new Date(t); xt.push([t, dn[d.getUTCDay()] + ' ' + String(d.getUTCHours()).padStart(2, '0') + ':00']); }
+    const svg = lineChart({ x0: T0, x1: T1, y0, y1, yt, yfmt: v => f0(v / 1000, 1) + 'K', xt, pts,
+      marks: [{ t: NOW, v: spot.BTC, label: 'Now ' + f0(spot.BTC), dx: -12, dy: -22, anchor: 'end' }],
+      extra: (X, Y, m, W, H) => {
+        let e = '<rect x="' + X(S0) + '" y="' + m.t + '" width="' + (X(S1) - X(S0)) + '" height="' + (Y(strike) - m.t) + '" fill="' + C.up + '" opacity=".09"/><rect x="' + X(S0) + '" y="' + Y(strike) + '" width="' + (X(S1) - X(S0)) + '" height="' + (H - m.b - Y(strike)) + '" fill="' + C.down + '" opacity=".09"/>';
+        e += '<line x1="' + X(T0) + '" x2="' + X(S0) + '" y1="' + Y(prev) + '" y2="' + Y(prev) + '" stroke="' + C.axis + '" stroke-width="2.5"/>' + T(X(T0) + 10, Y(prev) - 10, 'Yesterday ' + f0(prev) + ' · UP', { size: 19, fill: C.text2, halo: 1 });
+        e += '<line x1="' + X(S0) + '" x2="' + X(S1) + '" y1="' + Y(strike) + '" y2="' + Y(strike) + '" stroke="' + C.text + '" stroke-width="2.5"/>' + T(X(S1) - 8, Y(strike) + 30, 'Strike $' + f0(strike, 2), { anchor: 'end', size: 21, weight: 700, fill: C.text, halo: 1 });
+        e += '<rect x="' + (X(S0) + 10) + '" y="' + (m.t + 10) + '" width="16" height="16" rx="3" fill="' + C.up + '"/>' + T(X(S0) + 34, m.t + 24, 'UP wins above the strike', { size: 20, fill: C.text2 });
+        e += '<rect x="' + (X(S0) + 10) + '" y="' + (H - m.b - 34) + '" width="16" height="16" rx="3" fill="' + C.down + '"/>' + T(X(S0) + 34, H - m.b - 20, 'DOWN wins below it', { size: 20, fill: C.text2 });
+        e += T(X(S1) - 10, m.t + 54, 'Settles Sun 16:00 UTC', { anchor: 'end', size: 20, weight: 700, fill: C.text, halo: 1 });
+        e += '<line x1="' + X(CUT) + '" x2="' + X(CUT) + '" y1="' + m.t + '" y2="' + (H - m.b) + '" stroke="' + C.text + '" stroke-width="4"/>' + T(X(CUT) - 10, m.t + 84, 'Competition ends 19:06 UTC', { anchor: 'end', size: 20, weight: 700, fill: C.text, halo: 1 });
+        return e; } });
+    cards.D2 = card({ tag: 'BTC · Daily Up/Down', h1: 'The last daily that settles in time.',
+      sub: 'It settles Sunday at 16:00 UTC, before the 19:06 UTC cutoff. BTC is ' + (spot.BTC >= strike ? '+' : '−') + '$' + f0(Math.abs(spot.BTC - strike)) + ' on its strike with ' + f0(hLeft) + ' hours left.',
+      left: svg, panel: dailyPanel('BTC', 'No edge', 'Price is close to fair value on both sides. If you trade it at all, keep it tiny.'),
+      foot: 'Settles Sun 12pm ET (5pm WAT) · Binance BTC/USDT 1-min close · Data ' + stamp });
+  }
+}
+
 // ---------- render ----------
-const names = { A: 'A-eth-daily', B: 'B-btc-daily', C: 'C-sol-daily', F: 'F-btc-80k-ladder', D: 'D-last-daily-window', E: 'E-hourly-cheatsheet', Q: 'QT-packs-100k-lmts' };
+const names = { A: 'A-eth-daily', B: 'B-btc-daily', C: 'C-sol-daily', F: 'F-btc-80k-ladder', D: 'D-last-daily-window', E: 'E-hourly-cheatsheet', Q: 'QT-packs-100k-lmts', C2: 'C2-sol-daily-sun', D2: 'D2-btc-last-daily' };
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
   const pg = await b.newPage({ viewport: { width: 1600, height: 900 } });
