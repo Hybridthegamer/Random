@@ -7,6 +7,7 @@ const DATA = process.argv[2], OUT = process.argv[3] || __dirname;
 const rd = f => fs.readFileSync(path.join(DATA, f), 'utf8');
 const J = f => JSON.parse(rd(f));
 const NOW = Number(rd('now.txt')) * 1000;
+let LMTS = NaN; try { LMTS = +J('lmts.json').price; } catch (e) {} // $ per LMTS (optional)
 const SET = process.env.SET || 'sat'; // 'sat' = first set of cards (10 Oct morning dailies); 'sun' = the dailies that open 10 Oct 16:00 UTC and settle 11 Oct 16:00 UTC
 
 // ---------- palette (dark surface; blue/red = diverging pair, validated with validate_palette.js) ----------
@@ -241,7 +242,7 @@ if (SET === 'sat') {
 }
 
 // ---------- QT: Packs ----------
-if (SET === 'sat') {
+{
   const W = 956, H = 532; let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
   const leg = (x, y, ok, n) => `<rect x="${x}" y="${y}" width="150" height="86" rx="16" fill="${C.panel}" stroke="${C.axis}" stroke-width="2"/>` + T(x + 18, y + 34, 'Leg ' + n, { size: 20, weight: 700, fill: C.text2 }) + `<circle cx="${x + 112}" cy="${y + 43}" r="22" fill="${ok ? C.good : C.crit}"/><path d="${ok ? `M${x + 102} ${y + 43}l8 8l14 -15` : `M${x + 103} ${y + 34}l18 18M${x + 121} ${y + 34}l-18 18`}" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
   const row = (y, oks, res, sub) => oks.map((o, i) => leg(i * 178, y, o, i + 1)).join('') + `<path d="M${3 * 178 + 2} ${y + 43}h40m-12 -12l12 12l-12 12" stroke="${C.muted}" stroke-width="4" fill="none" stroke-linecap="round"/>` + T(3 * 178 + 62, y + 40, res, { size: 30, weight: 800, fill: C.text }) + T(3 * 178 + 62, y + 70, sub, { size: 20, fill: C.text2 });
@@ -251,14 +252,14 @@ if (SET === 'sat') {
     T(bw * p + 18, 305, `all 3 land: ${f0(p * 100)}%`, { size: 24, weight: 800, fill: C.text }) +
     T(0, 362, `Fair multiplier ${f0(fairX, 1)}x. After the 10% fee, about ${f0(netX, 1)}x.`, { size: 24, fill: C.text2 }) +
     T(0, 400, `$10 becomes ~$${f0(10 * netX)} when it lands. Average result: −$${f0(10 - 10 * p * netX, 0)} per $10 staked.`, { size: 24, fill: C.text2 }) +
-    T(0, 456, 'That fee is the price of the ticket.', { size: 24, weight: 800, fill: C.text }) + T(0, 490, 'The 100,000 $LMTS is why it can still be worth trying small.', { size: 24, weight: 800, fill: C.text }) + T(0, 524, 'Illustration only: assumes the 10% fee comes off the fair multiplier.', { size: 17, fill: C.muted });
+    T(0, 452, 'New-user bonus: 100 $LMTS' + (isNaN(LMTS) ? '' : ' (~$' + f0(100 * LMTS) + ')') + ' for staking $50. Fee on $50: ~$5.', { size: 23, weight: 800, fill: C.text }) + T(0, 488, 'A discount on trying Packs, not free money.', { size: 23, weight: 800, fill: C.text }) + T(0, 524, 'Illustration only: assumes the 10% fee comes off the fair multiplier.', { size: 17, fill: C.muted });
   s += '</svg>';
   const tile = (a, b2) => `<div style="background:${C.surface};border-radius:18px;padding:18px 20px"><div style="font-size:40px;font-weight:800;letter-spacing:-.01em">${a}</div><div style="font-size:19px;color:${C.text2};margin-top:4px">${b2}</div></div>`;
-  cards.Q = card({ tag: 'Packs · 100,000 $LMTS challenge', h1: 'Know what a Pack is before you try one.',
+  cards.Q = card({ tag: 'Packs · 200,000 $LMTS challenge', h1: 'Know what a Pack is before you try one.',
     sub: 'A Pack bundles 2 to 10 predictions into one ticket. Every leg has to land.',
     left: s, panel: `<div class="panel"><div class="ptitle">Pack facts</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px">${tile('2–10', 'legs per pack')}${tile('$1–$70', 'stake per pack')}${tile('20x', 'multiplier cap')}${tile('10%', 'fee, built into the multiplier')}</div>
       <div class="hero"><b>$1,400</b><span>maximum payout per pack. Maximum loss is your stake.</span></div></div>`,
-    foot: 'Pack rules from the Limitless docs. Challenge dates (Oct 7 to 28) per the campaign post: check the official post.' });
+    foot: 'Pack rules: Limitless docs. Challenge and bonus: @trylimitless post, 9 Oct (ends Oct 28).' + (isNaN(LMTS) ? '' : ' $LMTS ~$' + LMTS.toFixed(3) + ', 10 Oct.') });
 }
 
 // ---------- SUN set: the dailies that open Sat 16:00 UTC and settle Sun 16:00 UTC ----------

@@ -24,4 +24,5 @@ for s in $SLUGS; do
 done > daily_prices.jsonl
 curl -s -m 20 "https://api.limitless.exchange/markets/80000-1791173121619" | jq -c '{slug, buy:.tradePrices.buy.market, prices}' > ladder80.json
 uv run python "$(dirname "$0")/../tools/hit_ladder.py" > ladder.txt 2>/dev/null || true
+curl -s -m 20 "https://api.exchange.coinbase.com/products/LMTS-USD/ticker" -o lmts.json || true
 echo "fetched into $D at $(date -u)"
