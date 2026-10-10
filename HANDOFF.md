@@ -144,3 +144,13 @@ Plain HTML/CSS/JS with no build step, plus serverless functions. See `phase-1/RE
 - **Binance:** `https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=1000`
 - **Coinbase:** `https://api.exchange.coinbase.com/products/BTC-USD/ticker`
 - **X post stats:** `https://api.fxtwitter.com/status/<id>`
+
+## 10 Oct 2026 update (Sat, ~10:00 UTC), W41 final stretch
+- **Dashboard (10 Oct ~09:43 UTC):** rank **#18 of 19**, score **50.8**, 13 qualifying posts. #8 @ademolabegone 83.2 (30 posts), #9 78.3 (28), #10 72.4 (25), #1 98.5 (40). Fit of the 10 visible rows: **score ~ 34.4 + 1.52 x posts (residual sd ~4)**. So +4 posts ~ +6 pts, +10 (the weekly cap) ~ +15; reaching #8 would need ~32 posts-equivalent. Top 8 is out of reach on post count alone; realistic goal is to climb a few places. The Mini App says a submitted post earns campaign share INSTEAD of XP (XP already earned is withdrawn), so submitting is a trade-off if top 8 is out of reach.
+- **No BTC Up/Down Weekly market exists in W41** (Oct 5's resolved Up; none created after). The only BTC weekly-horizon market is the one-touch ladder (not Up/Down, eligibility unconfirmed).
+- **Daily markets settle on the Binance 1-minute close at 12:00 ET (16:00 UTC); an exactly equal close splits 50-50** (not "Up"). The daily opening 10 Oct 16:00 UTC settles 11 Oct 16:00 UTC (inside the 19:06 UTC deadline); the one opening 11 Oct 16:00 UTC does not.
+- **Posts drafted:** `posts/2026-10-10-w41-posts.md` (ETH/BTC/SOL dailies with live slugs, BTC 80K ladder, fill-in templates for the 16:00 UTC daily and an evening hourly, plus the 100K LMTS Packs quote post). The pack campaign text (100,000 $LMTS, rewards trading activity, Oct 7-28) was only seen via a KuCoin community repost; verify against the official @trylimitless post.
+- **Vol-regime note:** the model's 7-day hourly vol includes the 7-8 Oct flush (BTC 0.33%/h, ETH 0.45%, SOL 0.51%) while the last 24-36h are calmer (BTC 0.25%, ETH 0.23%, SOL 0.49%). ETH Daily "edge" and the 80K touch odds swing a lot between the two; treat edges under ~5 pts as noise.
+- **UGM:** Daniel's post is at **233 likes** (10 Oct 09:56 UTC). Needs 500 by 11 Oct 18:00 UTC = ~8/hr; the last 4 days ran ~0.4/hr. YES is near-certain to lose; do not hype it. **Resolve at 18:00 UTC on 11 Oct (19:00 WAT): screenshot first.**
+- **Viral post:** 1.54M views, 2,447 likes, 1,560 bookmarks (10 Oct 09:56 UTC).
+- **Tooling note:** in this environment a hook rejects any command containing `python3` (even `uv run python3`); `uv run python ...` works.
