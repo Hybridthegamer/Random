@@ -1,10 +1,12 @@
 // Shared by the browser (app.js) and the sync API (api/sync.js).
 //
-// A doc is { version, entries[], standings[], usedDrafts[] }. Every entry and
-// standings snapshot carries `updatedAt`; deletes are kept as tombstones
-// ({ deleted: true }) so a delete on one device beats a stale copy on another.
-
+// A doc is { version, calls[], entries[], standings[], usedDrafts[] }. Every record carries
+// `updatedAt`; deletes are kept as tombstones ({ deleted: true }) so a delete on one device
+// beats a stale copy on another.
+//
 // `calls` is the model scorecard: one record per market (id = market slug), capped to the newest MAX_CALLS.
+// `entries`, `standings` and `usedDrafts` are the old competition post log. The app no longer shows or
+// edits them, but they are still normalised and merged so the stored data (and Export JSON) keeps them.
 export const blankDoc = () => ({ version: 2, entries: [], standings: [], usedDrafts: [], calls: [] });
 const MAX_CALLS = 1500;
 
