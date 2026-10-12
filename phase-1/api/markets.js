@@ -1,4 +1,4 @@
-// GET /api/markets               → fair-value check + one-shot call for every live campaign market.
+// GET /api/markets               → fair-value check + one-shot call for every live tracked market.
 // GET /api/markets?resolve=a,b,c  → resolution status of up to 25 market slugs (for the scorecard).
 //
 // For each market: P(Up) from two drift-free estimates, averaged —
@@ -15,13 +15,13 @@ const LIMITLESS = "https://api.limitless.exchange";
 const BINANCE = "https://data-api.binance.vision/api/v3"; // public mirror, reachable from US regions
 const COINBASE = "https://api.exchange.coinbase.com";
 
-// Campaign markets (ambassador Mini App rules).
-const ELIGIBLE = new Set(["BTC 5m", "ETH 5m", "BTC 15m", "ETH 15m", "BTC 1h", "ETH 1h", "SOL 1h", "BTC 1d", "ETH 1d", "SOL 1d", "BTC 1w"]);
+// The Up/Down markets the panel covers.
+const TRACKED = new Set(["BTC 5m", "ETH 5m", "BTC 15m", "ETH 15m", "BTC 1h", "ETH 1h", "SOL 1h", "BTC 1d", "ETH 1d", "SOL 1d", "BTC 1w"]);
 const ASSETS = ["BTC", "ETH", "SOL"];
 const TF_MS = { "5m": 300e3, "15m": 900e3, "1h": 3600e3, "1d": 86400e3 };
 
 const getJSON = async url => {
-  const res = await fetch(url, { headers: { "User-Agent": "phase-1-tracker" } });
+  const res = await fetch(url, { headers: { "User-Agent": "dragoncalls" } });
   if (!res.ok) throw new Error(`${res.status} ${url}`);
   return res.json();
 };
@@ -187,7 +187,7 @@ export default async function handler(req, res) {
       const g = /^(BTC|ETH|SOL|Solana) Up or Down/.exec(m.title || "");
       const tf = tfOf(m.title || "");
       const asset = g && (g[1] === "Solana" ? "SOL" : g[1]);
-      if (!g || !tf || !ELIGIBLE.has(`${asset} ${tf}`)) continue;
+      if (!g || !tf || !TRACKED.has(`${asset} ${tf}`)) continue;
       const open = openPriceOf(m);
       const end = endOf(m, tf);
       if (!open || !(end > now)) continue;
@@ -237,14 +237,14 @@ export default async function handler(req, res) {
       const last = closed[closed.length - 1];
       let n = 0, up = 0;
       for (let i = 1; i < closed.length; i++) if (closed[i - 1] === last) { n++; if (closed[i]) up++; }
-      nextRates.push({ asset: a, tf: iv, lastUp: last, nextUp: n ? up / n : 0.5, n, eligible: ELIGIBLE.has(`${a} ${iv}`) });
+      nextRates.push({ asset: a, tf: iv, lastUp: last, nextUp: n ? up / n : 0.5, n, tracked: TRACKED.has(`${a} ${iv}`) });
     }
 
     const live = new Set(rows.map(r => `${r.asset} ${r.tf}`));
     res.setHeader("Cache-Control", "public, s-maxage=10, stale-while-revalidate=20");
     return res.status(200).json({
       at: now, spot, markets: rows, nextRates,
-      missing: [...ELIGIBLE].filter(k => !live.has(k)),
+      missing: [...TRACKED].filter(k => !live.has(k)),
     });
   } catch (err) {
     console.error(err);

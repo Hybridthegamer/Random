@@ -5,6 +5,7 @@
 import { timingSafeEqual, createHash } from "node:crypto";
 import { blankDoc, mergeDocs, normaliseDoc } from "../merge.js";
 
+// Keeps its original name so the data already stored under it is still found.
 const KEY = "phase1:doc";
 const MAX_BYTES = 1_000_000;
 

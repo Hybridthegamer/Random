@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
-  <title>Phase 1 Tracker</title>
-  <meta name="description" content="Submission tracker for the Limitless Crypto Up/Down Markets Competition, W40–W41.">
+  <title>dragoncalls</title>
+  <meta name="description" content="Model-driven calls on crypto Up/Down markets, with a running scorecard of how they did.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,51 +13,26 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Ticker, echoes the live-trades strip on limitless.exchange -->
-  <div class="ticker" aria-hidden="true">
-    <div class="ticker__track" id="ticker"></div>
-  </div>
-
   <header class="topbar">
     <div class="brand">
-      <span class="brand__mark" aria-hidden="true">P1</span>
-      <span class="brand__name">Phase 1</span>
+      <span class="brand__mark" aria-hidden="true">DC</span>
+      <span class="brand__name">dragoncalls</span>
     </div>
     <div class="topbar__actions">
       <button class="sync-pill sync-pill--off" id="syncState" type="button" title="Sync status">Local only</button>
-      <span class="live-dot" id="campaignState"><i></i>Live</span>
-      <button class="btn btn--lime" type="button" data-open="logDialog">+ Log post</button>
     </div>
   </header>
 
-  <div class="rankbar">
-    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 18h18M4 7l4 4 4-6 4 6 4-4-2 11H6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
-    <span>Standings update in <b class="mono" id="nextUpdate">--:--:--</b></span>
-  </div>
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button role="tab" type="button" id="tabBtn-predictions" aria-controls="tab-predictions" data-tab="predictions">Predictions</button>
+    <button role="tab" type="button" id="tabBtn-calls" aria-controls="tab-calls" data-tab="calls">Calls</button>
+    <button role="tab" type="button" id="tabBtn-data" aria-controls="tab-data" data-tab="data">Data</button>
+  </nav>
 
   <main class="wrap">
-    <section class="hero">
-      <p class="eyebrow">Markets competition · Crypto Up Down</p>
-      <h1>Finish top 8.<br>Bank the airdrop.</h1>
-      <div class="hero__stats">
-        <div class="stat">
-          <span class="stat__label">Campaign ends in</span>
-          <span class="stat__value mono" id="campaignEnd">--</span>
-        </div>
-        <div class="stat">
-          <span class="stat__label">Verified</span>
-          <span class="stat__value"><span id="totVerified">0</span><small> / 20</small></span>
-        </div>
-        <div class="stat">
-          <span class="stat__label">Latest rank</span>
-          <span class="stat__value" id="latestRank">—</span>
-        </div>
-      </div>
-    </section>
-
-    <section aria-labelledby="mcTitle">
+    <section role="tabpanel" id="tab-predictions" aria-labelledby="tabBtn-predictions">
       <div class="section-head">
-        <h2 id="mcTitle">Market check</h2>
+        <h2>Predictions</h2>
         <div class="row mc-actions">
           <span class="hint" id="mcAge">Not loaded</span>
           <button class="btn btn--ghost btn--sm" type="button" id="mcRefresh">Refresh</button>
@@ -75,10 +50,10 @@
       </div>
     </section>
 
-    <section aria-labelledby="scoreTitle">
+    <section role="tabpanel" id="tab-calls" aria-labelledby="tabBtn-calls" hidden>
       <div class="section-head">
-        <h2 id="scoreTitle">Model scorecard</h2>
-        <span class="hint">Every call the panel sees is logged and checked after it settles</span>
+        <h2>Calls</h2>
+        <span class="hint">Every call the Predictions tab sees is logged and checked after it settles</span>
       </div>
       <div class="card">
         <div class="score-grid" id="scoreGrid"></div>
@@ -86,64 +61,11 @@
       </div>
     </section>
 
-    <section aria-labelledby="weeksTitle">
-      <div class="section-head">
-        <h2 id="weeksTitle">Weeks</h2>
-        <span class="hint">4 qualifying to count · 10 max submitted</span>
-      </div>
-      <div class="weeks" id="weeks"></div>
-    </section>
-
-    <section aria-labelledby="coverageTitle">
-      <div class="section-head">
-        <h2 id="coverageTitle">Market coverage</h2>
-        <span class="hint">Spread your posts. Grey = not a campaign market.</span>
-      </div>
-      <div class="card">
-        <div class="coverage" id="coverage" role="table" aria-label="Posts per market"></div>
-      </div>
-    </section>
-
-    <section aria-labelledby="logTitle">
-      <div class="section-head">
-        <h2 id="logTitle">Submission log</h2>
-        <div class="seg" role="tablist" id="filters">
-          <button role="tab" class="is-on" data-filter="all">All</button>
-          <button role="tab" data-filter="W40">W40</button>
-          <button role="tab" data-filter="W41">W41</button>
-          <button role="tab" data-filter="open">Needs action</button>
-        </div>
-      </div>
-      <div id="log" class="log"></div>
-    </section>
-
-    <section aria-labelledby="draftsTitle">
-      <div class="section-head">
-        <h2 id="draftsTitle">Draft queue</h2>
-        <span class="hint">Fill the [brackets], paste your market link, post, then log it.</span>
-      </div>
-      <div class="drafts" id="drafts"></div>
-    </section>
-
-    <section aria-labelledby="standTitle">
-      <div class="section-head">
-        <h2 id="standTitle">Standings snapshots</h2>
-      </div>
-      <div class="card">
-        <form class="standings-form" id="standForm">
-          <label>Rank <input type="number" min="1" name="rank" required inputmode="numeric"></label>
-          <label>of <input type="number" min="1" name="total" value="18" required inputmode="numeric"></label>
-          <button class="btn btn--ghost" type="submit">Save snapshot</button>
-        </form>
-        <ol class="standings" id="standings"></ol>
-      </div>
-    </section>
-
-    <section aria-labelledby="dataTitle">
-      <div class="section-head"><h2 id="dataTitle">Your data</h2></div>
+    <section role="tabpanel" id="tab-data" aria-labelledby="tabBtn-data" hidden>
+      <div class="section-head"><h2>Data</h2></div>
       <div class="card data-card sync-card">
         <h3>Sync across devices</h3>
-        <p class="muted" id="syncDetail">Not connected. Logs stay on this device only.</p>
+        <p class="muted" id="syncDetail">Not connected. Calls stay on this device only.</p>
         <form class="row" id="syncForm" autocomplete="off">
           <input name="passphrase" type="password" placeholder="Sync passphrase" aria-label="Sync passphrase" required>
           <button class="btn btn--lime" type="submit">Connect</button>
@@ -151,132 +73,18 @@
         <button class="btn btn--ghost btn--sm" type="button" id="syncDisconnect" hidden>Disconnect this device</button>
       </div>
       <div class="card data-card">
-        <p class="muted">Backups: export a copy any time. Importing merges the file into your log.</p>
+        <p class="muted">Backups: export a copy any time. Importing merges the file into your data.</p>
         <div class="row">
           <button class="btn btn--ghost" type="button" id="exportJson">Export JSON</button>
-          <button class="btn btn--ghost" type="button" id="exportCsv">Export CSV</button>
           <label class="btn btn--ghost">Import JSON<input type="file" accept="application/json" id="importJson" hidden></label>
         </div>
       </div>
     </section>
 
     <footer class="foot">
-      Unofficial personal tracker. Not affiliated with Limitless. Rules mirrored from the ambassador Mini App, so check there if anything changes.
+      Unofficial personal tool. Not affiliated with Limitless. Model odds, not financial advice.
     </footer>
   </main>
-
-  <!-- Log / edit dialog -->
-  <dialog id="logDialog" class="sheet">
-    <form method="dialog" id="logForm" novalidate>
-      <div class="sheet__head">
-        <h3 id="formTitle">Log a post</h3>
-        <button class="icon-btn" value="cancel" aria-label="Close">✕</button>
-      </div>
-      <input type="hidden" name="id">
-
-      <label class="field">
-        <span>Post URL</span>
-        <input name="postUrl" type="url" placeholder="https://x.com/you/status/…" autocomplete="off">
-      </label>
-      <label class="field">
-        <span>Market link (inside the post)</span>
-        <input name="marketUrl" type="url" placeholder="https://limitless.exchange/markets/…" autocomplete="off">
-      </label>
-
-      <div class="grid2">
-        <label class="field">
-          <span>Asset</span>
-          <select name="asset">
-            <option>BTC</option><option>ETH</option><option>SOL</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Timeframe</span>
-          <select name="timeframe">
-            <option value="5m">5-minute</option>
-            <option value="15m">15-minute</option>
-            <option value="1h">Hourly</option>
-            <option value="1d">Daily</option>
-            <option value="1w">Weekly</option>
-          </select>
-        </label>
-      </div>
-
-      <div class="grid2">
-        <label class="field">
-          <span>Post type</span>
-          <select name="kind">
-            <option value="original">Original post</option>
-            <option value="quote">Quote post</option>
-            <option value="reply">Reply</option>
-            <option value="repost">Repost</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Posted at (your time)</span>
-          <input name="postedAt" type="datetime-local">
-        </label>
-      </div>
-
-      <label class="field">
-        <span>Post text (optional, lets the checker scan it)</span>
-        <textarea name="text" rows="5" placeholder="Paste the post text…"></textarea>
-      </label>
-
-      <div class="grid2">
-        <label class="field">
-          <span>Status</span>
-          <select name="status">
-            <option value="posted">Posted, not submitted</option>
-            <option value="submitted">Submitted in Mini App</option>
-            <option value="verified">Verified</option>
-            <option value="rejected">Rejected</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Views</span>
-          <input name="views" type="number" min="0" inputmode="numeric">
-        </label>
-      </div>
-
-      <label class="field">
-        <span>Notes</span>
-        <input name="notes" type="text" placeholder="e.g. called Up, settled Up ✅">
-      </label>
-
-      <div class="preflight" id="preflight" aria-live="polite"></div>
-
-      <div class="sheet__foot">
-        <button class="btn btn--danger" type="button" id="deleteEntry" hidden>Delete</button>
-        <button class="btn btn--lime" type="submit" value="save" id="saveEntry">Save</button>
-      </div>
-    </form>
-  </dialog>
-
-  <!-- Post composer -->
-  <dialog id="postDialog" class="sheet">
-    <form method="dialog" id="postForm">
-      <div class="sheet__head">
-        <h3 id="postTitle">Post draft</h3>
-        <button class="icon-btn" value="cancel" aria-label="Close">✕</button>
-      </div>
-      <label class="field">
-        <span>Draft (edit freely)</span>
-        <textarea name="text" rows="11" spellcheck="true"></textarea>
-      </label>
-      <div class="post-meta">
-        <span id="postCount" class="mono">0 / 280</span>
-        <label class="post-ref"><input type="checkbox" name="ref"> Add referral code <input type="text" name="refCode" placeholder="J3H8LSQBZG" maxlength="24" autocomplete="off"></label>
-      </div>
-      <div class="preflight" id="postChecks" aria-live="polite"></div>
-      <p class="hint">Opens X with this text filled in. Attach your position screenshot there, then post and submit it in the Mini App.</p>
-      <div class="sheet__foot">
-        <button class="btn btn--ghost" type="button" id="postRegen">New variant</button>
-        <button class="btn btn--ghost" type="button" id="postLog">Log it</button>
-        <button class="btn btn--lime" type="button" id="postOpen">Open in X ↗</button>
-      </div>
-    </form>
-  </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
